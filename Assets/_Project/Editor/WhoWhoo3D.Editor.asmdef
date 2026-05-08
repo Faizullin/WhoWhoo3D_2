@@ -1,0 +1,25 @@
+{
+    "name": "WhoWhoo3D.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:9aa3249398c2bd64aa661123c7842b6e",
+        "GUID:b82dcc173cc1e8b408229fea6447823f",
+        "GUID:502cc9ce1a3f8ab41b399453aa7f17f9",
+        "GUID:4b4d9184cbe72ed4389105ac62474c60",
+        "GUID:5bd134e52a648f2409f9e1ac5cd88df5",
+        "GUID:ff139cfa439a74e41aa927581ea9a324",
+        "GUID:f9268a7cdd6690846b19cf5bbbf7383b",
+        "GUID:becde494031911a42b5f9ddcf9c7b99b"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

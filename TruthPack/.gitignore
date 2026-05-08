@@ -1,0 +1,27 @@
+# TruthPack-local .gitignore.
+#
+# The repo root .gitignore is Unity-tuned: it ignores *.csproj / *.sln / *.slnx
+# (Unity regenerates them for its own project) and does not cover .NET bin/obj
+# folders here. This file overrides both for the standalone .NET project below.
+
+# Re-include source-of-truth project files (negate parent rules).
+!*.csproj
+!*.sln
+!*.slnx
+
+# .NET build artifacts.
+bin/
+obj/
+
+# IDE / per-user files.
+.vs/
+.idea/
+*.user
+*.suo
+
+# Test runner output.
+[Tt]est[Rr]esults/
+
+# NuGet legacy.
+packages/
+*.nupkg

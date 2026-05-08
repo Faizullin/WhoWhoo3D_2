@@ -1,0 +1,18 @@
+{
+    "name": "WhoWhoo3D.MapEditor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:9aa3249398c2bd64aa661123c7842b6e",
+        "GUID:b82dcc173cc1e8b408229fea6447823f",
+        "GUID:502cc9ce1a3f8ab41b399453aa7f17f9"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

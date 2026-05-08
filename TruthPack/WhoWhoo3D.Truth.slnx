@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WhoWhoo3D.Truth.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WhoWhoo3D.Truth.Tests.csproj" />
+  </Folder>
+</Solution>
