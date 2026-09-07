@@ -35,7 +35,9 @@ multiplayer are built or designed but deliberately deferred — see [TODO.md](TO
 ```
 WhoWhoo3D_2/
 ├── Assets/
-│   ├── StreamingAssets/Maps/sample.json   ← 2-cube v2 map, 40 slots, 20 pairs
+│   ├── StreamingAssets/Maps/
+│   │   ├── sample.json                    ← 2-cube v2 map, 40 slots, 20 pairs
+│   │   └── demo4x4.json                   ← 16-cube slab, 48 slots, 24 pairs, 3 players
 │   └── _Project/
 │       ├── Runtime/
 │       │   ├── Domain/          ← pure C#, no Unity API
@@ -54,8 +56,10 @@ WhoWhoo3D_2/
 │       │   ├── Input/           ← PlayerInputHandler
 │       │   └── UI/              ← HUD/ScoreboardView, Debug/TimelineView (IMGUI)
 │       ├── Tests/EditMode/      ← NUnit: Board, Wave, Maps, Turn, Ai, Support
+│       ├── Editor/             ← GameSceneBuilder (generates scenes)
 │       ├── Prefabs/Board/Cube.prefab
-│       └── Scenes/              ← Bootstrap.unity (empty shell), Game.unity (playable)
+│       └── Scenes/              ← Bootstrap.unity (empty shell), Game.unity (2-cube),
+│                                  Demo4x4.unity (16 cubes, 3 players — generated)
 ├── TruthPack/                   ← DOES NOT COMPILE — see TODO.md §4
 └── docs/
 ```

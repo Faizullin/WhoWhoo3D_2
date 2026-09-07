@@ -1,100 +1,84 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using WhoWhoo3D.Domain.Board;
-using WhoWhoo3D.Domain.Maps;
 
-namespace WhoWhoo3D.Gameplay.Board.View
+namespace WhoWhoo3D.Gameplay.Board.View;
+
+public class BoardView : MonoBehaviour
 {
-    public class BoardView : MonoBehaviour
+    [SerializeField] private GameObject cubePrefab;
+
+    private readonly Dictionary<CellId, CellView> _cellViews = new();
+
+    /// <summary>
+    /// Draws a board. Purely a renderer — it never loads a map and has no opinion about
+    /// which one to show. GameController owns that decision; having both own it meant two
+    /// Start() methods racing to render, and a duplicate map name to keep in sync.
+    /// </summary>
+    public void Render(BoardModel board)
     {
-        [SerializeField] private GameObject cubePrefab;
-        [SerializeField] private string mapFileName = "sample";
-        [SerializeField] private bool autoLoadOnStart = true;
+        ClearChildren();
+        _cellViews.Clear();
 
-        private readonly Dictionary<CellId, CellView> _cellViews = new();
-
-        /// <summary>
-        /// When true (default), BoardView loads and renders a map in Start().
-        /// Set to false when GameController manages initialization.
-        /// </summary>
-        private void Start()
+        foreach (var cell in board.Cells.Values)
         {
-            if (!autoLoadOnStart) return;
-
-            var path = Path.Combine(Application.streamingAssetsPath, "Maps", mapFileName + ".json");
-            var json = File.ReadAllText(path);
-            var board = MapSerializer.Deserialize(json);
-            Render(board);
+            var go = Instantiate(cubePrefab, transform);
+            var cellView = go.AddComponent<CellView>();
+            cellView.Init(cell, new Vector3(cell.Position.X, cell.Position.Y, cell.Position.Z));
+            _cellViews[cell.Id] = cellView;
         }
+    }
 
-        public void Render(BoardModel board)
+    public CellView GetCellView(CellId id) =>
+        _cellViews.TryGetValue(id, out var view) ? view : null;
+
+    /// <summary>Resolves a tile's view, or null if the cell or slot is unknown.</summary>
+    public SlotView GetSlotView(SlotId id)
+    {
+        var cellView = GetCellView(id.Side.Cell);
+        return cellView != null ? cellView.GetSlotView(id) : null;
+    }
+
+    /// <summary>
+    /// Overrides what a single tile draws, without touching the model. This is how both
+    /// wave playback and history scrubbing show a state the board is not actually in.
+    /// </summary>
+    public void ShowOwner(SlotId id, PlayerId owner)
+    {
+        var slotView = GetSlotView(id);
+        if (slotView != null)
+            slotView.ShowOwner(owner);
+    }
+
+    /// <summary>Drops every presentation override so the views follow the model again.</summary>
+    public void ClearOverrides()
+    {
+        foreach (var cellView in _cellViews.Values)
+            cellView.ClearSlotOverrides();
+    }
+
+    /// <summary>Refreshes every tile. Call after any board mutation.</summary>
+    public void RefreshAll()
+    {
+        foreach (var cellView in _cellViews.Values)
+            cellView.RefreshAllSlots();
+    }
+
+    /// <summary>
+    /// Removes previously spawned cells. Destroy() only runs at end of frame and
+    /// throws outside play mode, so re-rendering twice in one frame (or from an
+    /// Edit Mode test) needs the immediate variant.
+    /// </summary>
+    private void ClearChildren()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
         {
-            ClearChildren();
-            _cellViews.Clear();
-
-            // Suppress auto-load since we're being driven externally
-            autoLoadOnStart = false;
-
-            foreach (var cell in board.Cells.Values)
-            {
-                var go = Instantiate(cubePrefab, transform);
-                var cellView = go.AddComponent<CellView>();
-                cellView.Init(cell, new Vector3(cell.Position.X, cell.Position.Y, cell.Position.Z));
-                _cellViews[cell.Id] = cellView;
-            }
-        }
-
-        public CellView GetCellView(CellId id) =>
-            _cellViews.TryGetValue(id, out var view) ? view : null;
-
-        /// <summary>Resolves a tile's view, or null if the cell or slot is unknown.</summary>
-        public SlotView GetSlotView(SlotId id)
-        {
-            var cellView = GetCellView(id.Side.Cell);
-            return cellView != null ? cellView.GetSlotView(id) : null;
-        }
-
-        /// <summary>
-        /// Overrides what a single tile draws, without touching the model. This is how both
-        /// wave playback and history scrubbing show a state the board is not actually in.
-        /// </summary>
-        public void ShowOwner(SlotId id, PlayerId owner)
-        {
-            var slotView = GetSlotView(id);
-            if (slotView != null)
-                slotView.ShowOwner(owner);
-        }
-
-        /// <summary>Drops every presentation override so the views follow the model again.</summary>
-        public void ClearOverrides()
-        {
-            foreach (var cellView in _cellViews.Values)
-                cellView.ClearSlotOverrides();
-        }
-
-        /// <summary>Refreshes every tile. Call after any board mutation.</summary>
-        public void RefreshAll()
-        {
-            foreach (var cellView in _cellViews.Values)
-                cellView.RefreshAllSlots();
-        }
-
-        /// <summary>
-        /// Removes previously spawned cells. Destroy() only runs at end of frame and
-        /// throws outside play mode, so re-rendering twice in one frame (or from an
-        /// Edit Mode test) needs the immediate variant.
-        /// </summary>
-        private void ClearChildren()
-        {
-            for (int i = transform.childCount - 1; i >= 0; i--)
-            {
-                var child = transform.GetChild(i).gameObject;
-                if (Application.isPlaying)
-                    Destroy(child);
-                else
-                    DestroyImmediate(child);
-            }
+            var child = transform.GetChild(i).gameObject;
+            if (Application.isPlaying)
+                Destroy(child);
+            else
+                DestroyImmediate(child);
         }
     }
 }
+

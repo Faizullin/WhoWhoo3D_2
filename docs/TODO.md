@@ -5,8 +5,21 @@
 > wins. Nothing in this file is needed for that.
 >
 > Items are here because they are *deferred*, not because they are unwanted. Some are
-> already built — see the status column. Do not start any of these while the roadmap in
-> [BUILD_GUIDE.md](BUILD_GUIDE.md) still has open stages.
+> already built — see the status column.
+>
+> ## Ordering rule
+>
+> **Nothing in this file starts until the singleplayer core is finished and tested.**
+>
+> AI, multiplayer and abilities are all *extensions* of the core loop. Building any of them
+> against a core that is still changing means designing the extension around rules that will
+> move — and the seams end up in the wrong places. The slot-model rewrite already proved the
+> cost: it invalidated the AI's scoring, the map schema, every view, and roughly sixty tests
+> in one go. That is cheap while the surface is small and expensive once three subsystems
+> hang off it.
+>
+> Core first means: the game is playable start to finish, the rules are settled, the UI
+> communicates what is happening, and the Edit Mode suite passes in Unity. Then extend.
 
 ---
 
@@ -75,26 +88,87 @@ The design is already settled and should not be revisited before then:
 
 ---
 
-## 4. Deferred Infrastructure
+## 4. Scene Architecture
+
+**Status: PARTIAL.** `Demo4x4` is built (see below); the real scenes are not.
+
+Scenes are wiring, and wiring done by hand drifts — a missing reference or an unticked box
+costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a scene from a
+`SceneSpec`, so every scene is assembled identically and the setup is reviewable as a diff.
+
+| Scene | State |
+|---|---|
+| `Game.unity` | The original hand-wired scene. **Leave it alone** — it is the working reference. |
+| `Demo4x4.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build Demo4x4 Scene`. 16 cubes, 3 players, top faces only. |
+| `SingleplayerGame.unity` | **To do.** Same builder, plus map selection and player-count setup. |
+| `MultiplayerGame.unity` | **To do.** Same builder again; only the session layer differs. |
+
+- [ ] Extend `SceneSpec` with map selection and a start screen rather than fixed values.
+- [ ] `SingleplayerGame` scene once Stage 9 (HUD, legibility, victory, restart) is done.
+- [ ] `MultiplayerGame` scene — after §2, not before.
+- [ ] Retire `Game.unity` once `SingleplayerGame` supersedes it.
+
+---
+
+## 5. UI and Mesh Rendering Design
+
+**Status: NOT STARTED. Blocks nothing, but should land before §1–§3.**
+
+The current visuals are functional placeholders: primitive cubes, code-spawned slab tiles,
+and two IMGUI panels. That is enough to debug rules and no more. Interaction is the weaker
+half — you cannot tell what is clickable without reading WAVE_SPEC.
+
+### Mesh / visual
+- [ ] Replace `GameObject.CreatePrimitive` tiles with an authored mesh or prefab. Tiles are
+      spawned per slot (288 of them on Demo4x4), so this is a batching question too.
+- [ ] A real cube prefab with proper materials, edge bevels, and a readable top surface.
+- [ ] Distinguish **face state** visually: free, held, one-tile-from-full, locked by an enemy.
+      Right now a full face and a nearly-full face look identical.
+- [ ] Buildable/placeable item visuals — the piece the future map editor and abilities need.
+- [ ] Camera: orbit, zoom and framing that work for a 9×9 slab, not just two cubes.
+
+### UI interaction
+- [ ] Replace `ScoreboardView` and `TimelineView` IMGUI with uGUI/TextMeshPro.
+- [ ] Hover and selection feedback on tiles — the single biggest legibility gap.
+- [ ] Click affordances: highlight legal slots for the active player, dim locked faces.
+- [ ] Turn hand-off screen for hot-seat play, so players know the turn changed.
+- [ ] Wave playback controls surfaced properly rather than as a debug bar.
+
+**Why before §1–§3:** an AI is only debuggable if you can see what it did, multiplayer needs
+the turn hand-off and state readability that do not exist yet, and abilities need a target
+selection UI. Each of the three would otherwise ship its own ad-hoc UI, and they would not
+match.
+
+---
+
+## 6. Deferred Infrastructure
 
 - [ ] **Retire or fix TruthPack.** It currently does **not compile** — all 8 source files
       still use `TileStack` / `SideStateChange`, deleted in the slot-model rewrite. Nothing
       on the dev machine builds it (`dotnet` is not installed), which is how it rotted twice.
       Recommendation: delete it; the Unity Edit Mode suite covers the same ground.
-- [ ] **Delete the empty assemblies** `Data`, `Utils`, `MapEditor`, `Networking` until the
-      stage that fills them arrives. Each is an asmdef with zero `.cs` files.
+- [ ] **Delete the empty assemblies** `Data`, `Utils`, `MapEditor` and `Tests.PlayMode`
+      until the stage that fills them arrives. Each is an asmdef with zero `.cs` files.
+      (`Core` gets sources at Stage 9's EventBus, so leave that one.) They are referenced by
+      GUID from `Gameplay`, `Input`, `UI` and `Editor`, so removing one means editing those
+      reference lists too — do it in one pass, not piecemeal.
+- [ ] **Split `GameController`** when it next grows. It is ~470 lines across five clearly
+      marked sections (init, phase machine, player actions, presentation state, history).
+      That is still navigable, but the history/timeline block is the cohesive piece to lift
+      out first, and multiplayer will want a command seam in front of `TryPlayerAction`.
+- [ ] **Lift `Side.MaxSlots = 4`** if non-cube cells are ever wanted. See ARCHITECTURE
+      principle 8 — the Domain is index-based but assumes four edges per face.
 - [ ] **`GameConfig` ScriptableObject** for the 13 tuning values currently typed into the
       inspector across four components.
 - [ ] **Editor auto-wire** (`Reset`/`OnValidate`) so scene references fill themselves.
 - [ ] **PlayMode test suite** — the asmdef exists, no tests in it.
-- [ ] Replace `ScoreboardView` (IMGUI stopgap) with proper uGUI/TextMeshPro in Stage 9.
-- [ ] Audio, VFX, camera polish.
+- [ ] Audio, VFX polish.
 - [ ] Non-cube cell shapes. The Domain is already shape-agnostic; only `CubeGeometry` and
       the map generator assume six faces.
 
 ---
 
-## 5. Ideas Not Committed To
+## 7. Ideas Not Committed To
 
 - Larger clusters and irregular shapes (the surface walk already supports any cube cluster).
 - Sparse tile networks — maps where not every edge carries a tile pair. Supported by the

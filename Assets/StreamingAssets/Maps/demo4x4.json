@@ -1,0 +1,935 @@
+{
+  "schemaVersion": 2,
+  "name": "Demo 4x4",
+  "createdAt": "2026-09-07T00:00:00+00:00",
+  "cells": [
+    {
+      "id": "cell_00",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 2,
+          "cellId": "cell_10",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_01",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 1,
+          "partner": {
+            "cellId": "cell_10",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_01",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_01",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 5,
+          "cellId": "cell_00",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_11",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_02",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_00",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_11",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_02",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_02",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 2
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 5,
+          "cellId": "cell_01",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_12",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_03",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_01",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_12",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_03",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_03",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 3
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 5,
+          "cellId": "cell_02",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_13",
+          "sideIndex": 3
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_02",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 3,
+          "partner": {
+            "cellId": "cell_13",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_10",
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_00",
+          "sideIndex": 2
+        },
+        {
+          "side": 2,
+          "cellId": "cell_20",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_11",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_00",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_20",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_11",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_11",
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_01",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_10",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_21",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_12",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_01",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_10",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_21",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_12",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_12",
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 2
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_02",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_11",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_22",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_13",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_02",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_11",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_22",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_13",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_13",
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 3
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_03",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_12",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_23",
+          "sideIndex": 3
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_03",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_12",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_23",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_20",
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 0
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_10",
+          "sideIndex": 2
+        },
+        {
+          "side": 2,
+          "cellId": "cell_30",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_21",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_10",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_30",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_21",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_21",
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 1
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_11",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_20",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_31",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_22",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_11",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_20",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_31",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_22",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_22",
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 2
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_12",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_21",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_32",
+          "sideIndex": 3
+        },
+        {
+          "side": 4,
+          "cellId": "cell_23",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_12",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_21",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_32",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_23",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_23",
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 3
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_13",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_22",
+          "sideIndex": 4
+        },
+        {
+          "side": 2,
+          "cellId": "cell_33",
+          "sideIndex": 3
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_13",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_22",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_33",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_30",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": 0
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_20",
+          "sideIndex": 2
+        },
+        {
+          "side": 4,
+          "cellId": "cell_31",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 2,
+          "partner": {
+            "cellId": "cell_20",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_31",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_31",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": 1
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_21",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_30",
+          "sideIndex": 4
+        },
+        {
+          "side": 4,
+          "cellId": "cell_32",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_21",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_30",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_32",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_32",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": 2
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_22",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_31",
+          "sideIndex": 4
+        },
+        {
+          "side": 4,
+          "cellId": "cell_33",
+          "sideIndex": 5
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_22",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_31",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_33",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cell_33",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": 3
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_23",
+          "sideIndex": 2
+        },
+        {
+          "side": 5,
+          "cellId": "cell_32",
+          "sideIndex": 4
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_23",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_32",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -136,6 +136,15 @@ reproduce that bug, and R3b's redirection makes the partner wrong even for real 
 **Presentation note:** a `Released` slot drains to white *over the flight duration*, not on
 landing, so a face visibly empties as its tiles leave.
 
+**Anything showing a score must read the drawn state, not the model.** `WaveSimulator`
+finishes the entire chain before the first frame animates, so the model already holds the
+final counts. A HUD reading `ComputeScore(board)` therefore jumps to the outcome while the
+cubes are still mid-chain, and a player wiped out on step 1 of a 5-step chain is not shown
+as out until the wave ends. `GameController.DisplayScoreFor` / `DisplayIsOut` follow the
+frame on screen; `WaveAnimator` maintains the running tally as it applies each frame.
+Authoritative elimination still happens in `VictoryCheckPhase` once the board has settled —
+the drawn state is presentation only.
+
 ### R6. Score
 
 `playerScore` = number of slots the player holds. White tiles count for nobody. The

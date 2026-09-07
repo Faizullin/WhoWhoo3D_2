@@ -574,11 +574,31 @@ exactly one board.
 
 ---
 
+## Demo scenes
+
+`Tools ▸ WhoWhoo3D ▸ Build Demo4x4 Scene` generates `Demo4x4.unity`: a 16-cube flat slab,
+playable on the **top faces only**, for 3 hot-seat players on `demo4x4.json`.
+
+It exists to exercise the rules at a scale two cubes cannot. Because capacity is per-face,
+the slab has three natural tiers — **4 corner faces expand at 2 tiles, 8 edge faces at 3,
+4 interior faces at 4** — which is where the chain behaviour actually becomes visible.
+48 slots across 24 paired edges.
+
+The scene is generated rather than hand-wired; see [TODO.md](TODO.md) §4 for why, and for the
+`SingleplayerGame` / `MultiplayerGame` scenes that should come through the same builder.
+**Leave `Game.unity` alone** — it is the working two-cube reference.
+
+---
+
 ## Deferred
 
-AI opponent, online multiplayer and the abilities system are **out of scope**. They live in
-[TODO.md](TODO.md) with their design notes intact. Do not start them while any stage above
-is open.
+AI opponent, online multiplayer and the abilities system are **out of scope**, and so is the
+UI/mesh design pass ([TODO.md](TODO.md) §5) — though that one should land *before* the other
+three, since each would otherwise invent its own ad-hoc UI.
+
+**Nothing in TODO.md starts until the singleplayer core is finished and tested.** Extensions
+built against rules that are still moving put their seams in the wrong places; the slot-model
+rewrite already cost ~60 tests, the map schema, the AI's scoring and every view in one go.
 
 ---
 

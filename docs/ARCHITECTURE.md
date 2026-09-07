@@ -17,7 +17,11 @@
 5. **One controller per concern** — one `GameController`, one `BoardController`. No parallel near-duplicates.
 6. **No commented-out code** — git is the history.
 7. **Pure C# first, Unity second** — anything that *can* be tested without a scene running, *should* be.
-8. **Topology, not geometry** — model speaks in `Cell` / `Side` / `SideLink` graph terms. Direction names live only in the cube renderer.
+8. **Topology, not geometry** — the model speaks in `Cell` / `Side` / `Slot` graph terms and
+   integer indices. Face directions and slot positions live only in `CubeGeometry`.
+   *Known limit:* `Side.MaxSlots = 4` is hard-coded, so a face may have at most four edges.
+   Cube clusters of any shape work; a triangular or pentagonal face does not. Lift this
+   before attempting non-cube cells.
 
 ---
 
@@ -96,6 +100,24 @@ files. Unity builds them as empty assemblies. Keep them only as long as the stag
 fills them is near; an assembly with no sources is import cost with no boundary value.
 
 **Why `Domain` is separate:** `BoardModel`, `WaveSimulator`, and `MapSerializer` all live there. They return `BoardModel` objects, so they must all be in the same or upstream assembly. If serializers were in `Data` and models in `Gameplay`, `Data` would need to reference `Gameplay` while `Gameplay` already references `Data` — a compile cycle. `Domain` breaks the cycle: zero dependencies, everything else depends on it.
+
+---
+
+## Code Conventions
+
+Kept deliberately small, and enforced by review rather than tooling:
+
+- **File-scoped namespaces** everywhere (`namespace X;`). C# 10, so **every assembly needs a
+  `csc.rsp` containing `-langversion:latest`** — Unity 6 defaults to C# 9 and the failure is
+  a confusing parse error, not a clear message. Every asmdef has a sibling `csc.rsp`.
+- **Explicit `using` statements per file.** No `GlobalUsings.cs`.
+- **One public type per file**, named after the file.
+- **XML docs on anything non-obvious**, explaining *why* rather than restating the signature.
+- **No commented-out code.** Git remembers.
+- **`Domain` never references `UnityEngine`.** Enforced by `noEngineReferences: true`.
+- **Pure C# where possible**, even inside Gameplay: `BoardActions`, `GreedyAiPlayer`,
+  `WavePlaybackPlan`, `GameHistory` and `CubeGeometry` are all plain classes, which is why
+  they are unit-tested rather than played through.
 
 ---
 
