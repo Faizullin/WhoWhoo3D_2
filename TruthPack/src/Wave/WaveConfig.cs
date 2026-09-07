@@ -2,7 +2,7 @@ namespace WhoWhoo3D.Truth.Wave;
 
 public sealed record WaveConfig(int Capacity, int Keep, int MaxChainSteps)
 {
-    public static WaveConfig Default => new(Capacity: 4, Keep: 1, MaxChainSteps: 5);
+    public static readonly WaveConfig Default = new(Capacity: 4, Keep: 1, MaxChainSteps: 5);
 
     public void Validate()
     {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using WhoWhoo3D.Domain.Board;
@@ -9,9 +10,18 @@ namespace WhoWhoo3D.Gameplay.Board.View
     {
         [SerializeField] private GameObject cubePrefab;
         [SerializeField] private string mapFileName = "sample";
+        [SerializeField] private bool autoLoadOnStart = true;
 
+        private readonly Dictionary<CellId, CellView> _cellViews = new();
+
+        /// <summary>
+        /// When true (default), BoardView loads and renders a map in Start().
+        /// Set to false when GameController manages initialization.
+        /// </summary>
         private void Start()
         {
+            if (!autoLoadOnStart) return;
+
             var path = Path.Combine(Application.streamingAssetsPath, "Maps", mapFileName + ".json");
             var json = File.ReadAllText(path);
             var board = MapSerializer.Deserialize(json);
@@ -20,15 +30,70 @@ namespace WhoWhoo3D.Gameplay.Board.View
 
         public void Render(BoardModel board)
         {
-            foreach (Transform child in transform)
-                Destroy(child.gameObject);
+            ClearChildren();
+            _cellViews.Clear();
+
+            // Suppress auto-load since we're being driven externally
+            autoLoadOnStart = false;
 
             foreach (var cell in board.Cells.Values)
             {
                 var go = Instantiate(cubePrefab, transform);
                 var cellView = go.AddComponent<CellView>();
-                var pos = new Vector3(cell.Position.X, cell.Position.Y, cell.Position.Z);
-                cellView.Init(cell.Id, pos, cell.Sides);
+                cellView.Init(cell, new Vector3(cell.Position.X, cell.Position.Y, cell.Position.Z));
+                _cellViews[cell.Id] = cellView;
+            }
+        }
+
+        public CellView GetCellView(CellId id) =>
+            _cellViews.TryGetValue(id, out var view) ? view : null;
+
+        /// <summary>Resolves a tile's view, or null if the cell or slot is unknown.</summary>
+        public SlotView GetSlotView(SlotId id)
+        {
+            var cellView = GetCellView(id.Side.Cell);
+            return cellView != null ? cellView.GetSlotView(id) : null;
+        }
+
+        /// <summary>
+        /// Overrides what a single tile draws, without touching the model. This is how both
+        /// wave playback and history scrubbing show a state the board is not actually in.
+        /// </summary>
+        public void ShowOwner(SlotId id, PlayerId owner)
+        {
+            var slotView = GetSlotView(id);
+            if (slotView != null)
+                slotView.ShowOwner(owner);
+        }
+
+        /// <summary>Drops every presentation override so the views follow the model again.</summary>
+        public void ClearOverrides()
+        {
+            foreach (var cellView in _cellViews.Values)
+                cellView.ClearSlotOverrides();
+        }
+
+        /// <summary>Refreshes every tile. Call after any board mutation.</summary>
+        public void RefreshAll()
+        {
+            foreach (var cellView in _cellViews.Values)
+                cellView.RefreshAllSlots();
+        }
+
+        /// <summary>
+        /// Removes previously spawned cells. Destroy() only runs at end of frame and
+        /// throws outside play mode, so re-rendering twice in one frame (or from an
+        /// Edit Mode test) needs the immediate variant.
+        /// </summary>
+        private void ClearChildren()
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                var child = transform.GetChild(i).gameObject;
+                if (Application.isPlaying)
+                    Destroy(child);
+                else
+                    DestroyImmediate(child);
             }
         }
     }

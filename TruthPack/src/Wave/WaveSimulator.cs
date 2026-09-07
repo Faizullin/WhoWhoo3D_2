@@ -8,32 +8,23 @@ public static class WaveSimulator
     {
         cfg.Validate();
         var steps = new List<WaveStep>();
-        bool quiescent = true;
 
         for (int i = 0; i < cfg.MaxChainSteps; i++)
         {
             var emissions = FindEmissions(board, cfg);
             if (emissions.Count == 0)
-            {
-                quiescent = true;
                 break;
-            }
 
-            quiescent = false;
             var step = new WaveStep();
 
             foreach (var sourceId in emissions)
                 ResolveEmission(board, sourceId, cfg, step);
 
             steps.Add(step);
-
-            if (FindEmissions(board, cfg).Count == 0)
-            {
-                quiescent = true;
-                break;
-            }
         }
 
+        // Quiescent if the loop ended because no emissions remain (not because MaxChainSteps was hit)
+        bool quiescent = FindEmissions(board, cfg).Count == 0;
         return new WaveResult(steps, quiescent);
     }
 

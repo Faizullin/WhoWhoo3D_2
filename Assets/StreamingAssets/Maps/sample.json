@@ -1,50 +1,442 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "Sample",
-  "createdAt": "2026-05-16T00:00:00+00:00",
+  "createdAt": "2026-09-07T00:00:00+00:00",
   "cells": [
     {
-      "id": "cell_0001", "position": {"x": 0, "y": 0, "z": 0}, "sideCount": 6,
-      "sides": [
-        { "index": 2, "stack": { "owner": 1, "count": 3 }, "link": { "cellId": "cell_0002", "sideIndex": 3 } },
-        { "index": 4, "link": { "cellId": "cell_0004", "sideIndex": 5 } }
+      "id": "cell_0001",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 2,
+          "cellId": "cell_0002",
+          "sideIndex": 3
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 3,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 4,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 5,
+            "edge": 0
+          }
+        },
+        {
+          "side": 1,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 1,
+            "edge": 1
+          }
+        },
+        {
+          "side": 1,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 3,
+            "edge": 1
+          }
+        },
+        {
+          "side": 1,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 4,
+            "edge": 1
+          }
+        },
+        {
+          "side": 1,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 5,
+            "edge": 1
+          }
+        },
+        {
+          "side": 3,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 0,
+            "edge": 1
+          }
+        },
+        {
+          "side": 3,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 1,
+            "edge": 1
+          }
+        },
+        {
+          "side": 3,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 4,
+            "edge": 3
+          }
+        },
+        {
+          "side": 3,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 5,
+            "edge": 3
+          }
+        },
+        {
+          "side": 4,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 4,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 1,
+            "edge": 2
+          }
+        },
+        {
+          "side": 4,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 4,
+            "edge": 3
+          }
+        },
+        {
+          "side": 4,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 3,
+            "edge": 2
+          }
+        },
+        {
+          "side": 5,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        },
+        {
+          "side": 5,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 1,
+            "edge": 3
+          }
+        },
+        {
+          "side": 5,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 5,
+            "edge": 3
+          }
+        },
+        {
+          "side": 5,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 3,
+            "edge": 3
+          }
+        }
       ]
     },
     {
-      "id": "cell_0002", "position": {"x": 1, "y": 0, "z": 0}, "sideCount": 6,
-      "sides": [
-        { "index": 3, "link": { "cellId": "cell_0001", "sideIndex": 2 } },
-        { "index": 2, "link": { "cellId": "cell_0003", "sideIndex": 3 } },
-        { "index": 4, "link": { "cellId": "cell_0005", "sideIndex": 5 } }
-      ]
-    },
-    {
-      "id": "cell_0003", "position": {"x": 2, "y": 0, "z": 0}, "sideCount": 6,
-      "sides": [
-        { "index": 3, "stack": { "owner": 2, "count": 2 }, "link": { "cellId": "cell_0002", "sideIndex": 2 } },
-        { "index": 4, "link": { "cellId": "cell_0006", "sideIndex": 5 } }
-      ]
-    },
-    {
-      "id": "cell_0004", "position": {"x": 0, "y": 0, "z": 1}, "sideCount": 6,
-      "sides": [
-        { "index": 5, "link": { "cellId": "cell_0001", "sideIndex": 4 } },
-        { "index": 2, "link": { "cellId": "cell_0005", "sideIndex": 3 } }
-      ]
-    },
-    {
-      "id": "cell_0005", "position": {"x": 1, "y": 0, "z": 1}, "sideCount": 6,
-      "sides": [
-        { "index": 5, "link": { "cellId": "cell_0002", "sideIndex": 4 } },
-        { "index": 3, "link": { "cellId": "cell_0004", "sideIndex": 2 } },
-        { "index": 2, "link": { "cellId": "cell_0006", "sideIndex": 3 } }
-      ]
-    },
-    {
-      "id": "cell_0006", "position": {"x": 2, "y": 0, "z": 1}, "sideCount": 6,
-      "sides": [
-        { "index": 5, "stack": { "owner": 1, "count": 1 }, "link": { "cellId": "cell_0003", "sideIndex": 4 } },
-        { "index": 3, "link": { "cellId": "cell_0005", "sideIndex": 2 } }
+      "id": "cell_0002",
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "sideCount": 6,
+      "joins": [
+        {
+          "side": 3,
+          "cellId": "cell_0001",
+          "sideIndex": 2
+        }
+      ],
+      "slots": [
+        {
+          "side": 0,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 2,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 4,
+            "edge": 0
+          }
+        },
+        {
+          "side": 0,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 5,
+            "edge": 0
+          }
+        },
+        {
+          "side": 1,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 2,
+            "edge": 1
+          }
+        },
+        {
+          "side": 1,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 1,
+            "edge": 0
+          }
+        },
+        {
+          "side": 1,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 4,
+            "edge": 1
+          }
+        },
+        {
+          "side": 1,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 5,
+            "edge": 1
+          }
+        },
+        {
+          "side": 2,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 0,
+            "edge": 0
+          }
+        },
+        {
+          "side": 2,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 1,
+            "edge": 0
+          }
+        },
+        {
+          "side": 2,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 4,
+            "edge": 2
+          }
+        },
+        {
+          "side": 2,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 5,
+            "edge": 2
+          }
+        },
+        {
+          "side": 4,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 0,
+            "edge": 2
+          }
+        },
+        {
+          "side": 4,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 1,
+            "edge": 2
+          }
+        },
+        {
+          "side": 4,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 2,
+            "edge": 2
+          }
+        },
+        {
+          "side": 4,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 4,
+            "edge": 2
+          }
+        },
+        {
+          "side": 5,
+          "edge": 0,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 0,
+            "edge": 3
+          }
+        },
+        {
+          "side": 5,
+          "edge": 1,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 1,
+            "edge": 3
+          }
+        },
+        {
+          "side": 5,
+          "edge": 2,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0002",
+            "sideIndex": 2,
+            "edge": 3
+          }
+        },
+        {
+          "side": 5,
+          "edge": 3,
+          "owner": 0,
+          "partner": {
+            "cellId": "cell_0001",
+            "sideIndex": 5,
+            "edge": 2
+          }
+        }
       ]
     }
   ]

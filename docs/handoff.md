@@ -1,19 +1,32 @@
 # WhoWhoo3D_2 — Project Handoff
 
-> Written: 2026-05-24. Describes what the project is, how it is structured, and what has been built so far.
+> Written: 2026-05-24. Updated: 2026-09-07. Describes what the project is, how it is
+> structured, and what has been built so far.
+>
+> **Verification status:** everything below through Stage 7.5 compiles cleanly (Gameplay,
+> Input and the new Edit Mode tests were compiled against the Unity 6000.4.5f1 reference
+> assemblies). The test suite has **not** been executed in the Unity Test Runner since
+> Stage 6 — open the project in Unity and run Edit Mode before treating the counts below
+> as green.
 
 ---
 
 ## What the game is
 
-**WhoWhoo3D** is a 3D turn-based strategy game in the style of Dice Wars / Risk.
+**WhoWhoo3D** is a 3D turn-based strategy game played on a cluster of cubes.
 
-- The board is made of **cells** (cubes by default, but the model is shape-agnostic).
-- Each cell face is a **side**. Sides hold **tile stacks** belonging to a player.
-- On a player's turn they trigger a **wave**: tile stacks that reach capacity (≥4) emit tiles to linked neighbour sides, potentially cascading in a chain reaction.
-- A player wins by eliminating all opponents' tiles from the board.
+- Cubes are pressed together. Faces that touch become **interior** — buried and unplayable.
+- The remaining **exposed** faces form one continuous surface, and that surface is the board.
+- Each exposed face carries up to 4 **tile slots**, one at the midpoint of each edge. Every
+  slot is paired with the slot across that edge, so tiles always exist in twos.
+- A tile is **white** (unclaimed) or owned. On your turn you claim one white tile — but only
+  on a face where no other player already holds a tile.
+- Fill every slot on a face and it **expands**: each of its tiles claims its partner across
+  the edge, and the face itself is released back to white.
+- Last player holding tiles wins.
 
-The game is single-player (vs AI) first; networked multiplayer is deferred to a later phase.
+**Current goal: a simple local player-versus-player game.** The AI opponent and online
+multiplayer are built or designed but deliberately deferred — see [TODO.md](TODO.md).
 
 ---
 
@@ -22,164 +35,101 @@ The game is single-player (vs AI) first; networked multiplayer is deferred to a 
 ```
 WhoWhoo3D_2/
 ├── Assets/
+│   ├── StreamingAssets/Maps/sample.json   ← 2-cube v2 map, 40 slots, 20 pairs
 │   └── _Project/
 │       ├── Runtime/
-│       │   ├── Domain/          ← pure domain logic (no Unity API)
-│       │   │   ├── Board/       ← graph topology types
-│       │   │   ├── Wave/        ← deterministic wave simulator
-│       │   │   └── Maps/        ← JSON serialiser / deserialiser
-│       │   └── Gameplay/
-│       │       └── Board/
-│       │           └── View/    ← MonoBehaviours: BoardView, CellView, SideView, TileView
-│       ├── Tests/
-│       │   └── EditMode/        ← NUnit tests for Domain (Board, Wave, Maps)
-│       └── Prefabs/
-│           └── Board/
-│               └── Cube.prefab  ← 1-unit cube mesh, no MonoBehaviours
-├── StreamingAssets/
-│   └── Maps/
-│       └── sample.json          ← 6-cell 2×3 grid map used during development
-├── TruthPack/                   ← pure .NET 8 project, NO Unity dependency
-│   └── src/                     ← canonical C# source (ported into Domain assembly)
-├── docs/                        ← design documents
-│   ├── ARCHITECTURE.md
-│   ├── BUILD_GUIDE.md           ← 12-stage implementation roadmap
-│   ├── MAP_SCHEMA.md
-│   ├── WAVE_SPEC.md
-│   └── handoff.md               ← this file
-└── Packages/                    ← Unity package manifest (managed by user via Package Manager)
+│       │   ├── Domain/          ← pure C#, no Unity API
+│       │   │   ├── Board/       ← BoardModel, Cell, Side, Slot, SlotId
+│       │   │   ├── Wave/        ← WaveSimulator, WaveConfig, SlotStateChange
+│       │   │   └── Maps/        ← MapSerializer (schema v2)
+│       │   ├── Gameplay/
+│       │   │   ├── Board/       ← BoardActions, CubeGeometry
+│       │   │   │   └── View/    ← BoardView, CellView, SlotView
+│       │   │   ├── Player/      ← PlayerState, PlayerRoster
+│       │   │   ├── Turn/        ← IGamePhase + 4 phases
+│       │   │   ├── Wave/        ← WavePlaybackPlan (pure), WaveAnimator
+│       │   │   ├── Ai/          ← GreedyAiPlayer (deferred)
+│       │   │   ├── History/     ← GameHistory, HistoryEntry (pure)
+│       │   │   └── Game/        ← GameController
+│       │   ├── Input/           ← PlayerInputHandler
+│       │   └── UI/              ← HUD/ScoreboardView, Debug/TimelineView (IMGUI)
+│       ├── Tests/EditMode/      ← NUnit: Board, Wave, Maps, Turn, Ai, Support
+│       ├── Prefabs/Board/Cube.prefab
+│       └── Scenes/              ← Bootstrap.unity (empty shell), Game.unity (playable)
+├── TruthPack/                   ← DOES NOT COMPILE — see TODO.md §4
+└── docs/
 ```
-
----
-
-## Assembly structure
-
-| Assembly | Location | Purpose |
-|---|---|---|
-| `WhoWhoo3D.Domain` | `Runtime/Domain/` | Pure domain logic. `noEngineReferences: true`. References only `Newtonsoft.Json`. |
-| `WhoWhoo3D.Gameplay` | `Runtime/Gameplay/` | Unity MonoBehaviours. References Domain. |
-| `WhoWhoo3D.Tests.EditMode` | `Tests/EditMode/` | NUnit tests run in Unity Editor. `overrideReferences: true`, explicit `nunit.framework.dll` + `Newtonsoft.Json.dll`. |
-
-Every assembly has a `csc.rsp` file next to its `.asmdef` enabling `-langversion:latest -nullable:enable` (required because Unity 6 defaults to C# 9 and `record` types need C# 10+).
-
-A `IsExternalInit.cs` polyfill lives in the Domain assembly to support `record` and `init` under .NET Standard 2.1 (Unity's compile target).
 
 ---
 
 ## Domain model
 
-### Board (`WhoWhoo3D.Domain.Board`)
-
 | Type | Kind | Description |
 |---|---|---|
-| `Vec3` | `readonly record struct` | 3D position (float X/Y/Z). No Unity dependency. |
-| `CellId` | `readonly record struct` | String identifier for a cell. |
-| `PlayerId` | `readonly record struct` | Integer player index. `PlayerId.None = new(0)`. |
-| `SideId` | `readonly record struct` | `(CellId, int LocalIndex)` pair. |
-| `SideLink` | `readonly record struct` | Points to the other `SideId` of a connection. |
-| `TileStack` | `readonly record struct` | `(PlayerId Owner, int Count)`. `TileStack.Empty` for unoccupied. |
-| `Side` | `class` | Owns a `Stack` and an optional `Link`. Mutable via internal setters. |
-| `Cell` | `class` | List of `Side`s, `Vec3 Position`, `CellId Id`. |
-| `BoardModel` | `class` | `Dictionary<CellId, Cell>`. Methods: `AddCell`, `LinkSides`, `SetStack`, `AddTiles`, `RemoveTiles`, `Validate()`. |
+| `CellId` / `PlayerId` / `SideId` | `readonly record struct` | Identifiers. `PlayerId.None` = unclaimed/white. |
+| `SlotId` | `readonly record struct` | `(SideId Side, int Edge)` — a tile position on one edge of a face. |
+| `Slot` | `class` | `Id`, `Partner`, `Owner`. `IsNeutral` when unclaimed. |
+| `Side` | `class` | Up to 4 slots. `IsInterior` when joined to another cell. `IsFull(out owner)` is the expansion trigger. |
+| `Cell` | `class` | Sides + position. `ExposedSides` filters out buried faces. |
+| `BoardModel` | `class` | `AddCell`, `JoinSides`, `AddSlotPair`, `SetOwner`, `ClearSide`, `Validate`, `Clone`. |
 
-Rules enforced by `BoardModel`:
-- Both sides must exist before linking.
-- A side can only have one link (exclusive).
-- No self-links.
-- `Validate()` checks reciprocity of every link.
+`Validate()` enforces two rules that carry gameplay meaning: **no lone slot** (a tile with no
+partner has nothing to expand across) and **no contested face** (a face holding two players'
+tiles is clickable by nobody).
 
-### Wave (`WhoWhoo3D.Domain.Wave`)
-
-`WaveSimulator.Simulate(BoardModel, WaveConfig) → WaveResult`
-
-- Pure static method, no mutation of the board passed in (works on a copy).
-- `WaveConfig.Default`: Capacity = 4, Keep = 1, MaxChainSteps = 5.
-- Returns a list of `WaveStep` records describing each chain step's side-state changes.
-
-### Maps (`WhoWhoo3D.Domain.Maps`)
-
-`MapSerializer.Serialize(BoardModel, MapMetadata) → string` / `MapSerializer.Deserialize(string) → BoardModel`
-
-- JSON via `Newtonsoft.Json` (package `com.unity.nuget.newtonsoft-json` 3.2.2).
-- Schema version field guards against stale files.
-- Validates: no duplicate cell IDs, all links are reciprocal, stack counts > 0.
-- Map files live in `Assets/StreamingAssets/Maps/` and are loaded at runtime with `File.ReadAllText`.
-
-Map JSON schema: `{ schemaVersion, name, createdAt, cells[] → { id, position, sideCount, sides[] → { index, stack?, link? } } }`
-
----
-
-## View layer (Stage 6)
-
-| MonoBehaviour | Responsibility |
-|---|---|
-| `BoardView` | Reads map JSON in `Start()`, calls `MapSerializer.Deserialize`, instantiates one `Cube.prefab` + `CellView` per cell. |
-| `CellView` | Positions itself at `cell.Position` (local). Creates one `SideView` child per side, placed at the matching face offset (FaceOffsets[0..5]). |
-| `SideView` | Owns a `TileView` child. Spawns it when `Side.Stack` is non-empty, destroys it when empty. Calls `TileView.Refresh` on state change. |
-| `TileView` | Spawns a `PrimitiveType.Sphere` child. Scale = `0.15 + Count × 0.04`. Color = Red/Blue/Green/Yellow for players 1-4. |
-
-Face offset mapping (unit cube, local space):
-
-| Index | Direction | Offset |
-|---|---|---|
-| 0 | Top (+Y) | (0, 0.5, 0) |
-| 1 | Bottom (−Y) | (0, −0.5, 0) |
-| 2 | Right (+X) | (0.5, 0, 0) |
-| 3 | Left (−X) | (−0.5, 0, 0) |
-| 4 | Front (+Z) | (0, 0, 0.5) |
-| 5 | Back (−Z) | (0, 0, −0.5) |
-
-The `Cube.prefab` holds only a `MeshFilter` + `MeshRenderer` (1-unit Unity default cube mesh). MonoBehaviours are added at runtime via `AddComponent`.
+Edge indexing, the partner-resolution rule, and the wave rules are specified in
+[MAP_SCHEMA.md](MAP_SCHEMA.md) and [WAVE_SPEC.md](WAVE_SPEC.md).
 
 ---
 
 ## Test coverage
 
-All 56 tests pass in the Unity Test Runner (Edit Mode):
+62 Edit Mode tests. **They have never been executed in the Unity Test Runner** — they
+compile against the Unity reference assemblies, and the Domain was additionally run
+headlessly against `sample.json`, but a real test run is still outstanding.
 
-| Suite | Tests | Coverage |
-|---|---|---|
-| `Board/BoardModelTests.cs` | 29 | AddCell, LinkSides, Validate, SetStack, AddTiles, RemoveTiles |
-| `Wave/WaveSimulatorTests.cs` | 17 | All WAVE_SPEC worked examples + edge cases |
-| `Maps/MapSerializerTests.cs` | 10 | Round-trip, reject invalid JSON, reject bad schema version, link reciprocity, stack validation |
+| Suite | Tests |
+|---|---|
+| `Ai/GreedyAiPlayerTests.cs` | 8 |
+| `Board/BoardModelTests.cs` | 12 |
+| `Maps/MapSerializerTests.cs` | 11 |
+| `Turn/PlayerRosterTests.cs` | 5 |
+| `Turn/TurnLoopTests.cs` | 8 |
+| `Wave/WavePlaybackPlanTests.cs` | 7 |
+| `Wave/WaveSimulatorTests.cs` | 11 |
 
 ---
 
-## Build progress (12-stage plan)
+## Build progress
+
+**Primary goal: simple local player-vs-player game.**
 
 | Stage | Description | Status |
 |---|---|---|
-| 0 | Bootstrap — Unity project, git, TruthPack scaffold | Done |
-| 1 | TruthPack: topology types + BoardModel tests | Done |
-| 2 | TruthPack: WaveSimulator + tests | Done |
-| 3 | TruthPack: MapSerializer + tests | Done |
-| 4 | Port TruthPack → Unity Domain assembly | Done |
-| 5 | Unity Edit-Mode tests (56 tests green) | Done |
-| 6 | Board view — cubes + tiles rendered from JSON map | Done |
-| **7** | **Turn loop + player input** | **Next** |
-| 8 | Wave animation | Not started |
-| 9 | AI player | Not started |
-| 10 | UI / HUD | Not started |
-| 11 | Audio + polish | Not started |
-| 12 | Multiplayer (deferred) | Not started |
+| 0-6 | Bootstrap → topology → wave → maps → Unity port → board view | Done |
+| 7 | Turn loop + player input (phases, click-to-claim) | Rewritten for slot model; compiles; **needs a Unity run** |
+| 8 | Wave animation (`WavePlaybackPlan` + `WaveAnimator`) | Rewritten for slot model; compiles; **needs a Unity run** |
+| 9.6 | Debug timeline — history, arrows, pause, revert | Built; compiles; reverse/replay proven headlessly |
+| **9** | **Make the game legible — highlighting, HUD, victory, player setup** | **Next** |
+| 10 | Map editor | Not started |
+| 11 | Polish & ship local | Not started |
+| — | AI opponent, online multiplayer, abilities | **Deferred → [TODO.md](TODO.md)** |
 
 ---
 
-## Stage 7 — what comes next
+## Where the model came from
 
-**Goal:** a player can click a cell to trigger a wave, turns advance, game detects winner.
+The board was originally one `TileStack (Owner, Count)` per face, with tiles flowing along
+cell-to-cell face links. That model was replaced wholesale in Sept 2026 after the 3D mock-up
+showed what was actually wanted: discrete square tiles on cube edges, forming a network over
+the exposed surface.
 
-Key pieces to build:
+Consequences still visible in the repo:
 
-1. **`PlayerState`** — player id, alive/eliminated flag.
-2. **`PlayerRoster`** — list of players, active player index, `NextTurn()`.
-3. **`IGamePhase`** — interface with `Enter()` / `Exit()` for state machine phases (WaitForInput, WaveResolve, CheckVictory, NextTurn).
-4. **`GameController` (MonoBehaviour)** — owns the BoardModel, PlayerRoster, current phase. Drives the phase machine in `Update`.
-5. **`PlayerInputHandler` (MonoBehaviour)** — listens to click/tap on a `CellView`, raises an event. `GameController` subscribes during WaitForInput phase.
-6. **Cell click detection** — add a `MeshCollider` or `BoxCollider` to the Cube prefab so raycasts hit it; `CellView` exposes a `CellId` property so the handler knows which cell was clicked.
-7. **`WaveAnimator`** — coroutine that plays through `WaveResult.Steps` one step per frame (or timed), then calls `Refresh` on affected `SideView`s.
-
-No networking, no AI, no score UI yet — just the raw turn loop working end-to-end in the Editor Game view.
+- Map schema jumped to **v2** with no migrator. v1 maps do not load.
+- `TruthPack` was not ported and no longer compiles.
+- `WaveConfig.Capacity` is gone — capacity is per-face, equal to that face's slot count.
+- `WAVE_SPEC.md` is at v0.2; its v0.1 rules (subtract-based combat, `Keep = 1`) are dead.
 
 ---
 
@@ -190,3 +140,20 @@ No networking, no AI, no score UI yet — just the raw turn loop working end-to-
 - **No `git add` / `git commit`** — the user stages and commits themselves.
 - **Unity 6 LTS** (6000.4.5f1), URP, New Input System.
 - **`noEngineReferences: true`** on the Domain assembly — keep domain code free of Unity API.
+- **Current goal is the local player-vs-player game.** AI, networking and abilities are
+  deferred in [TODO.md](TODO.md); don't start them while a roadmap stage is open.
+- **Tiles always exist in pairs.** Create and delete slot pairs, never halves — a lone slot
+  fails `Validate()`.
+- **`CubeGeometry` is the only place that knows a cell is a cube.** The map author must use
+  the same edge convention or tiles render on the wrong edges.
+- **No nullable annotations** on reference types — see the Assembly structure section.
+- **TruthPack and Domain are a deliberate fork, not a mirror.** TruthPack uses
+  `System.Text.Json` + xUnit; the Unity Domain uses `Newtonsoft.Json` + NUnit. Everything
+  else must stay byte-identical. Any change to topology or wave logic has to land in
+  **both** — a half-applied edit already left TruthPack with a duplicate-local compile
+  error that went unnoticed because nothing on this machine builds it (`dotnet` is not
+  installed). Either install the .NET SDK and build TruthPack as part of the routine, or
+  retire it now that the Unity Edit Mode suite covers the same ground.
+- **Verify before marking a stage done.** Unity generates a `.meta` file per script on
+  import; source files with no `.meta` have never been seen by the editor, let alone
+  compiled or tested. Check that before writing "N tests pass" into this document.

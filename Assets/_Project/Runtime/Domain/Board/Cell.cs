@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace WhoWhoo3D.Domain.Board;
 
@@ -30,5 +29,23 @@ public sealed class Cell
         return Sides[localIndex];
     }
 
-    public int TotalTileCount => Sides.Sum(s => s.Stack.Count);
+    /// <summary>Faces that are visible and playable — everything not buried against a neighbour.</summary>
+    public IEnumerable<Side> ExposedSides
+    {
+        get
+        {
+            foreach (var side in Sides)
+                if (!side.IsInterior)
+                    yield return side;
+        }
+    }
+
+    /// <summary>Slots on this cell claimed by the given player.</summary>
+    public int OwnedCount(PlayerId player)
+    {
+        int n = 0;
+        foreach (var side in Sides)
+            n += side.OwnedCount(player);
+        return n;
+    }
 }

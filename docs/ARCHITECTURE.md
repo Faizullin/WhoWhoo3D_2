@@ -2,6 +2,7 @@
 
 > Design reference for the project at `WhoWhoo3D_2/`. Companion docs:
 > - [BUILD_GUIDE.md](BUILD_GUIDE.md) — concrete stage-by-stage build manual
+> - [TODO.md](TODO.md) — deferred work (AI, networking, abilities)
 > - [WAVE_SPEC.md](WAVE_SPEC.md) — gameplay rules
 > - [MAP_SCHEMA.md](MAP_SCHEMA.md) — data contract
 
@@ -24,45 +25,49 @@
 
 ```
 Assets/
-├── _Project/
-│   ├── Runtime/
-│   │   ├── Domain/                   ← pure C#, no Unity refs
-│   │   │   ├── Board/                ← BoardModel, Cell, Side, TileStack
-│   │   │   └── Wave/                 ← WaveSimulator, WaveConfig
-│   │   ├── Core/
-│   │   │   ├── Events/               ← EventBus
-│   │   │   ├── Services/             ← service locator / DI seam
-│   │   │   └── SceneFlow/            ← scene loader + fade
-│   │   ├── Gameplay/
-│   │   │   ├── Board/                ← BoardView, CellView, SideView
-│   │   │   ├── Wave/                 ← WaveAnimator
-│   │   │   ├── Player/               ← PlayerController, PlayerState
-│   │   │   ├── Ability/              ← AbilitySystem
-│   │   │   ├── Turn/                 ← TurnController, IGamePhase
-│   │   │   └── Game/                 ← GameController
-│   │   ├── Data/                     ← ScriptableObject definitions
-│   │   │   ├── Abilities/
-│   │   │   ├── Maps/
-│   │   │   └── GameConfig/
-│   │   ├── Input/                    ← Input System actions + handlers
-│   │   ├── UI/
-│   │   │   ├── HUD/
-│   │   │   ├── Menu/
-│   │   │   ├── Inventory/
-│   │   │   └── Common/
-│   │   ├── Networking/               ← Phase 12 only
-│   │   ├── MapEditor/
-│   │   └── Utils/
-│   ├── Editor/
-│   ├── Tests/
-│   │   ├── EditMode/
-│   │   └── PlayMode/
-│   ├── Art/
-│   ├── Audio/
-│   ├── Prefabs/
-│   ├── Scenes/
-│   └── Settings/
-└── StreamingAssets/                  ← bundled default maps
+├── StreamingAssets/                  ← bundled default maps
+│   └── Maps/
+│       └── sample.json
+└── _Project/
+    ├── Runtime/
+    │   ├── Domain/                   ← pure C#, no Unity refs
+    │   │   ├── Board/                ← BoardModel (with .Clone()), Cell, Side, TileStack
+    │   │   ├── Wave/                 ← WaveSimulator, WaveConfig
+    │   │   └── Maps/                 ← MapSerializer, MapDtos
+    │   ├── Core/
+    │   │   ├── Events/               ← EventBus
+    │   │   ├── Services/             ← service locator / DI seam
+    │   │   └── SceneFlow/            ← scene loader + fade
+    │   ├── Gameplay/
+    │   │   ├── Board/                ← BoardActions, CubeGeometry; View/ → BoardView, CellView, SlotView
+    │   │   ├── Wave/                 ← WavePlaybackPlan (pure), WaveAnimator
+    │   │   ├── Player/               ← PlayerState, PlayerRoster
+    │   │   ├── Ai/                   ← GreedyAiPlayer (deferred, see TODO.md)
+    │   │   ├── Ability/              ← AbilitySystem
+    │   │   ├── Turn/                 ← IGamePhase + the four phases
+    │   │   └── Game/                 ← GameController
+    │   ├── Data/                     ← ScriptableObject definitions
+    │   │   ├── Abilities/
+    │   │   ├── Maps/
+    │   │   └── GameConfig/
+    │   ├── Input/                    ← Input System actions + handlers
+    │   ├── UI/
+    │   │   ├── HUD/
+    │   │   ├── Menu/
+    │   │   ├── Inventory/
+    │   │   └── Common/
+    │   ├── Networking/               ← Stage 13 only (deferred)
+    │   ├── MapEditor/
+    │   └── Utils/
+    ├── Editor/
+    ├── Tests/
+    │   ├── EditMode/
+    │   └── PlayMode/
+    ├── Art/
+    ├── Audio/
+    ├── Prefabs/
+    ├── Scenes/
+    └── Settings/
 ```
 
 `_Project/` is optional — flat `Assets/Scripts/...` is also fine. See BUILD_GUIDE for the discussion.
@@ -76,15 +81,19 @@ Target Unity version: **Unity 6 LTS** (Universal 3D / URP). Project at `WhoWhoo3
 | Asmdef | Deps | Notes |
 |---|---|---|
 | `WhoWhoo3D.Domain` | (none) | Pure C#, no `UnityEngine`. `BoardModel`, `WaveSimulator`, `MapSerializer` live here. |
-| `WhoWhoo3D.Core` | (none) | EventBus, services, scene flow. |
-| `WhoWhoo3D.Data` | Core | ScriptableObjects, configs. |
-| `WhoWhoo3D.Gameplay` | Domain, Core, Data | Views, controllers, MonoBehaviours. |
+| `WhoWhoo3D.Core` | (none) | EventBus, services, scene flow. **Scaffold only — no sources yet.** |
+| `WhoWhoo3D.Data` | Core | ScriptableObjects, configs. **Scaffold only — no sources yet.** |
+| `WhoWhoo3D.Gameplay` | Domain, Core, Data | Views, controllers, phases, MonoBehaviours. |
 | `WhoWhoo3D.Input` | Core, Gameplay, Unity.InputSystem | |
 | `WhoWhoo3D.UI` | Core, Gameplay, Data, Unity.TextMeshPro | |
 | `WhoWhoo3D.MapEditor` | Domain, Core, Data | |
 | `WhoWhoo3D.Utils` | (none) | Math, helpers. |
 | `WhoWhoo3D.Tests.EditMode` | all runtime | |
 | `WhoWhoo3D.Tests.PlayMode` | all runtime | |
+
+`Core`, `Data`, `Utils`, `UI` and `MapEditor` currently have an `.asmdef` but no `.cs`
+files. Unity builds them as empty assemblies. Keep them only as long as the stage that
+fills them is near; an assembly with no sources is import cost with no boundary value.
 
 **Why `Domain` is separate:** `BoardModel`, `WaveSimulator`, and `MapSerializer` all live there. They return `BoardModel` objects, so they must all be in the same or upstream assembly. If serializers were in `Data` and models in `Gameplay`, `Data` would need to reference `Gameplay` while `Gameplay` already references `Data` — a compile cycle. `Domain` breaks the cycle: zero dependencies, everything else depends on it.
 
@@ -94,13 +103,31 @@ Target Unity version: **Unity 6 LTS** (Universal 3D / URP). Project at `WhoWhoo3
 
 ### 1. Phase / Turn State Machine
 
-Each phase is a class implementing `IGamePhase { Enter(); Tick(); Exit(); NextPhase; }`.
+Each phase is a class implementing
+`IGamePhase { Enter(); Tick(float deltaTime); Exit(); bool IsComplete; IGamePhase NextPhase(); }`.
 
 ```
-RoundStartPhase → BoardWavePhase → PlayerTurnPhase → VictoryCheckPhase
+RoundStartPhase → PlayerTurnPhase → BoardWavePhase → VictoryCheckPhase
+                        ↑                                    │
+                        └───────── next living player ───────┘
+                                                             │
+                                          one player left ───┴──→ NextPhase() == null
 ```
 
-Clean transitions, testable, no giant switch.
+The player acts *before* the wave resolves: reinforcing a side is what pushes it to
+capacity and sets the chain off.
+
+Each phase names its own successor, so `GameController` holds no `switch` over phase
+types — it just drains whatever is already complete. Two constraints keep this testable:
+
+- `Tick` receives `deltaTime` instead of reading `UnityEngine.Time`, so Edit Mode tests
+  can drive time without a frame loop.
+- Completion is **pushed**: an input event advances the machine in the same call rather
+  than waiting for the next `Update()`. Polling-only transitions make every turn
+  untestable outside Play Mode.
+
+`AdvanceWhileComplete` is iterative and capped (`MaxPhaseChain`) so a pair of phases that
+complete each other cannot freeze the editor.
 
 ### 2. Ability System
 
@@ -117,14 +144,35 @@ Designers create abilities as assets without code changes.
 ### 3. Board / Wave System
 
 ```
-BoardModel       — pure data: cells, sides, tile stacks, links (Domain)
+BoardModel       — pure data: cells, sides, edge-paired tile slots (Domain)
 BoardView        — Unity GameObjects, visualization      (Gameplay)
-BoardController  — orchestrates Model ↔ View              (Gameplay)
+GameController   — orchestrates Model ↔ View, owns phases  (Gameplay)
 WaveSimulator    — pure logic, returns WaveResult         (Domain)
 WaveAnimator     — replays WaveResult visually            (Gameplay)
 ```
 
-Model is testable without a Unity scene running. The simulator is graph-based and shape-agnostic — see WAVE_SPEC.
+Model is testable without a Unity scene running. The simulator is graph-based and
+shape-agnostic — see [WAVE_SPEC.md](WAVE_SPEC.md).
+
+**The unit of ownership is a slot, not a face.** A slot is a tile at the midpoint of one
+edge of an *exposed* face, and every slot is paired with the slot across that edge — around
+a cube's own corner, or across the seam onto a neighbouring cube. Faces pressed together are
+*interior*: buried, unplayable, and forbidden from holding slots. The exposed faces of a
+cluster therefore form one continuous surface, and that surface is the entire playing field.
+
+A face expands when every slot it has is claimed by one player — capacity is per-face, so a
+two-slot face fires on two. Expanding claims each slot's partner and releases the source
+face to white.
+
+Only `CubeGeometry` and the map author know a cell is drawn as a cube. The Domain speaks in
+side and edge indices, per principle 8.
+
+`WaveAnimator` is presentation only. The simulator has already written the final state by
+the time playback starts, so the animator rewinds the *views* to the pre-wave state
+(`WavePlaybackPlan.InitialState`, `SideView.ShowStack`) and walks them forward one chain
+step at a time, then hands display back to the model. Skipping or interrupting an
+animation can therefore never desync the board. The timeline itself lives in
+`WavePlaybackPlan` — pure C#, no `UnityEngine` — so it is unit-tested rather than watched.
 
 ### 4. Event Bus — notification glue, not the spine
 
@@ -143,9 +191,22 @@ Rule of thumb: if subscriber order or completion matters, use a direct call. If 
 
 One file. Owns the phase machine. The only top-level orchestrator.
 
-### 6. Multiplayer — command-based, not state-sync
+### 6. AI Opponent — deferred
 
-When multiplayer is added (Phase 12, deferred):
+`GreedyAiPlayer` is built and tested but **off by default**: the current goal is a local
+player-versus-player game. See [TODO.md](TODO.md) §1.
+
+Two properties are worth preserving whenever it is picked back up:
+
+- **It shares `BoardActions` with the human path**, so a move it simulates is exactly the
+  move `GameController` executes.
+- **It has no `UnityEngine` reference**, so move selection is unit-tested rather than
+  watched.
+
+### 7. Multiplayer### 7. Multiplayer — command-based, not state-sync
+
+**Deferred until the local game ships — see [TODO.md](TODO.md) §2.** The design is settled;
+recording it here so it is not re-litigated:
 
 - Client sends **commands** (intents): `MoveCommand`, `UseAbilityCommand`, `EndTurnCommand`.
 - Host runs the authoritative `GameController`, validates commands, mutates the model, and publishes **result events** (`TileCapturedEvent`, `WaveResolvedEvent`).

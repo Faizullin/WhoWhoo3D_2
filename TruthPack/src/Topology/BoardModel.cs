@@ -120,6 +120,54 @@ public sealed class BoardModel
 
         return new ValidationResult(errors);
     }
+
+    /// <summary>
+    /// Creates a deep copy of this board. All cells, sides, stacks, and links
+    /// are duplicated; mutations on the clone do not affect the original.
+    /// </summary>
+    public BoardModel Clone()
+    {
+        var clone = new BoardModel();
+
+        // Pass 1: recreate all cells (sides start empty)
+        foreach (var (id, cell) in _cells)
+            clone.AddCell(id, cell.Position, cell.Sides.Count);
+
+        // Pass 2: copy tile stacks
+        foreach (var (_, cell) in _cells)
+        {
+            for (int i = 0; i < cell.Sides.Count; i++)
+            {
+                var side = cell.Sides[i];
+                if (!side.Stack.IsEmpty)
+                    clone.SetStack(side.Id, side.Stack);
+            }
+        }
+
+        // Pass 3: copy links (deduplicate reciprocal pairs)
+        var linked = new HashSet<(SideId, SideId)>();
+        foreach (var (_, cell) in _cells)
+        {
+            for (int i = 0; i < cell.Sides.Count; i++)
+            {
+                var side = cell.Sides[i];
+                if (!side.Link.HasValue) continue;
+
+                var a = side.Id;
+                var b = side.Link.Value.Other;
+
+                // Normalize pair order to avoid linking the same pair twice
+                var key = string.CompareOrdinal(a.Cell.Value, b.Cell.Value) <= 0
+                    ? (a, b)
+                    : (b, a);
+
+                if (linked.Add(key))
+                    clone.LinkSides(a, b);
+            }
+        }
+
+        return clone;
+    }
 }
 
 public sealed record ValidationResult(IReadOnlyList<string> Errors)

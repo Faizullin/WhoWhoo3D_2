@@ -4,42 +4,49 @@ using WhoWhoo3D.Domain.Board;
 
 namespace WhoWhoo3D.Gameplay.Board.View
 {
+    /// <summary>
+    /// One cube. Spawns a SlotView for every tile slot the model gives it — only on
+    /// exposed faces, since an interior face is buried between cells and holds nothing.
+    /// </summary>
     public class CellView : MonoBehaviour
     {
-        private static readonly Vector3[] FaceOffsets =
-        {
-            new Vector3( 0,     0.5f,  0),    // 0: top
-            new Vector3( 0,    -0.5f,  0),    // 1: bottom
-            new Vector3( 0.5f,  0,     0),    // 2: right  (+X)
-            new Vector3(-0.5f,  0,     0),    // 3: left   (-X)
-            new Vector3( 0,     0,     0.5f), // 4: front  (+Z)
-            new Vector3( 0,     0,    -0.5f), // 5: back   (-Z)
-        };
-
         public CellId CellId { get; private set; }
 
-        private readonly List<SideView> _sideViews = new List<SideView>();
+        private readonly Dictionary<SlotId, SlotView> _slotViews = new();
 
-        public void Init(CellId id, Vector3 position, IReadOnlyList<Side> sides)
+        public void Init(Cell cell, Vector3 position)
         {
-            CellId = id;
+            CellId = cell.Id;
             transform.localPosition = position;
-            gameObject.name = id.Value;
+            gameObject.name = cell.Id.Value;
 
-            for (int i = 0; i < sides.Count; i++)
+            foreach (var side in cell.ExposedSides)
             {
-                var sideGo = new GameObject($"Side_{i}");
-                sideGo.transform.SetParent(transform, false);
-                sideGo.transform.localPosition = i < FaceOffsets.Length
-                    ? FaceOffsets[i]
-                    : Vector3.zero;
+                foreach (var slot in side.Slots)
+                {
+                    var go = new GameObject("Slot");
+                    go.transform.SetParent(transform, false);
 
-                var sideView = sideGo.AddComponent<SideView>();
-                sideView.Init(sides[i]);
-                _sideViews.Add(sideView);
+                    var view = go.AddComponent<SlotView>();
+                    view.Init(slot, side.LocalIndex, slot.Id.Edge);
+                    _slotViews[slot.Id] = view;
+                }
             }
         }
 
-        public SideView GetSideView(int localIndex) => _sideViews[localIndex];
+        public SlotView GetSlotView(SlotId id) =>
+            _slotViews.TryGetValue(id, out var view) ? view : null;
+
+        public void RefreshAllSlots()
+        {
+            foreach (var view in _slotViews.Values)
+                view.Refresh();
+        }
+
+        public void ClearSlotOverrides()
+        {
+            foreach (var view in _slotViews.Values)
+                view.ClearOverride();
+        }
     }
 }

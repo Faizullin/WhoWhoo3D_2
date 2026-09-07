@@ -1,6 +1,11 @@
-# Map JSON Schema — v1
+# Map JSON Schema — v2
 
-> The data contract for saved maps. Matches the `BoardModel` / `Cell` / `Side` types in `WhoWhoo3D.Domain`.
+> The data contract for saved maps. Matches `BoardModel` / `Cell` / `Side` / `Slot` in
+> `WhoWhoo3D.Domain`.
+>
+> **v1 is not readable.** It described one tile stack per face and cell-to-cell face links;
+> the model is now edge-paired tiles on an exposed surface. No migrator exists — v1 maps
+> must be regenerated.
 
 ---
 
@@ -8,24 +13,21 @@
 
 ```jsonc
 {
-  "schemaVersion": 1,
-  "name": "Default",
-  "createdAt": "2026-05-08T12:00:00Z",
+  "schemaVersion": 2,
+  "name": "Sample",
+  "createdAt": "2026-09-07T00:00:00+00:00",
   "cells": [
     {
       "id": "cell_0001",
-      "position": { "x": 0.0, "y": -0.5, "z": 8.0 },
+      "position": { "x": 0, "y": 0, "z": 0 },
       "sideCount": 6,
-      "sides": [
+      "joins": [
+        { "side": 2, "cellId": "cell_0002", "sideIndex": 3 }
+      ],
+      "slots": [
         {
-          "index": 0,
-          "stack": { "owner": 1, "count": 2 },
-          "link": { "cellId": "cell_0002", "sideIndex": 4 }
-        },
-        {
-          "index": 2,
-          "stack": null,
-          "link": { "cellId": "cell_0003", "sideIndex": 1 }
+          "side": 0, "edge": 0, "owner": 1,
+          "partner": { "cellId": "cell_0002", "sideIndex": 0, "edge": 1 }
         }
       ]
     }
@@ -41,53 +43,82 @@
 
 | Field | Type | Notes |
 |---|---|---|
-| `schemaVersion` | int (required) | Always `1` for this version. Loaders MUST read this first. |
+| `schemaVersion` | int (required) | Always `2`. Loaders read this first and reject anything else. |
 | `name` | string | Human-readable label. |
-| `createdAt` | ISO-8601 string | UTC. Sortable, locale-free. |
+| `createdAt` | ISO-8601 string | UTC. |
 | `cells` | array of Cell | The board. |
 
 ### Cell
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | string (required) | Stable identifier. Not an array index — survives deletes. Convention: `cell_NNNN` zero-padded. |
-| `position` | `{x, y, z}` floats | World-space position. **View-only metadata.** The simulator never reads this. |
-| `sideCount` | int (required) | Number of sides this cell has (6 for cubes). Sides are 0-indexed, `0..sideCount-1`. |
-| `sides` | array of Side | **Sparse** — only sides that have a stack OR a link need to be present. Omitted sides are empty + unlinked. |
+| `id` | string (required) | Stable identifier, not an array index. Convention `cell_NNNN`. |
+| `position` | `{x,y,z}` floats | World position. **View-only** — the simulator never reads it. |
+| `sideCount` | int (required) | 6 for cubes. Sides are 0-indexed. |
+| `joins` | array of Join | Faces pressed against a neighbour. |
+| `slots` | array of Slot | Tiles on this cell's exposed faces. |
 
-### Side
+### Join
 
-| Field | Type | Notes |
-|---|---|---|
-| `index` | int (required) | Local index, `0..sideCount-1`. |
-| `stack` | TileStack or null | Tiles on this side. `null` or omitted means empty. |
-| `link` | SideLink or null | Linked neighbor. `null` or omitted means no neighbor. |
-
-### TileStack
+Marks two faces as touching. Both become **interior**: invisible, unplayable, and forbidden
+from holding slots.
 
 | Field | Type | Notes |
 |---|---|---|
-| `owner` | int (required) | `PlayerId.Value`. Must be > 0 (0 is `PlayerId.None`, only valid for empty stacks which are written as `null`). |
-| `count` | int (required) | Must be > 0. Empty stacks are written as `null`, never `{owner: 0, count: 0}`. |
+| `side` | int (required) | This cell's face index. |
+| `cellId` | string (required) | The neighbouring cell. |
+| `sideIndex` | int (required) | The neighbour's face index. |
 
-### SideLink
+Both cells list the join. The loader applies each pair once and the validator checks
+reciprocity.
+
+### Slot
+
+One tile position, at the midpoint of one edge of a face.
 
 | Field | Type | Notes |
 |---|---|---|
-| `cellId` | string (required) | Must match an existing `cells[].id`. |
-| `sideIndex` | int (required) | Must be in range `0..sideCount-1` of the linked cell. |
+| `side` | int (required) | Face index, `0..sideCount-1`. Must be an **exposed** face. |
+| `edge` | int (required) | `0..3`. See Edge Indexing below. |
+| `owner` | int | `PlayerId.Value`. `0` or omitted means an unclaimed **white** tile. |
+| `partner` | SlotRef (**required**) | The other half of the pair. |
+
+### SlotRef
+
+| Field | Type | Notes |
+|---|---|---|
+| `cellId` | string (required) | May be this cell (corner pairing) or a neighbour (seam pairing). |
+| `sideIndex` | int (required) | |
+| `edge` | int (required) | |
+
+Both halves are listed, each naming the other. The serializer writes both; the validator
+checks reciprocity.
 
 ---
 
-## Design Choices
+## Edge Indexing
 
-1. **`schemaVersion` is mandatory.** Loaders dispatch on it. v2 will be additive when needed.
-2. **Stable string IDs**, not array indexes. Deletes don't break references. Saved files are diff-friendly.
-3. **Sparse `sides` array.** Empty sides are omitted. A bare cube has `sides: []`.
-4. **Topology, not direction names.** Sides are integer-indexed. The renderer maps `index → "top" / "right" / ...` for cubes; the schema doesn't care.
-5. **`position` is view-only metadata.** The wave simulator works on the link graph alone.
-6. **No reciprocal-link duplication in JSON.** If A side 0 ↔ B side 4, both sides MUST list the link. The serializer writes both; the validator checks both.
-7. **ISO-8601 timestamps.** Sortable, locale-free.
+Face indices for a cube: `0` top (+Y), `1` bottom (−Y), `2` right (+X), `3` left (−X),
+`4` front (+Z), `5` back (−Z). Opposites pair as 0-1, 2-3, 4-5.
+
+**A face's four edges are its four perpendicular faces, in ascending face index.** So the
+top face's edges run `0` → +X, `1` → −X, `2` → +Z, `3` → −Z.
+
+This convention is shared by `CubeGeometry.cs` (which places the tile in the scene) and by
+whatever writes the map. They must agree or tiles will render on the wrong edges.
+
+### Finding a slot's partner
+
+For an exposed face `F` of cell `C`, and edge `e` whose neighbouring face is `G`:
+
+- **`G` is exposed on `C`** — pair around this cube's own corner:
+  partner = `(C, G, edgeIndexOf(G, F))`
+- **`G` is interior**, joined to cell `D` — pair across the seam onto `D`'s same-facing face:
+  partner = `(D, F, edgeIndexOf(F, opposite(G)))`
+
+Every edge of the exposed surface yields exactly one reciprocal pair, so a fully-wired
+cluster gives each exposed face exactly 4 slots. Sparse maps are fine — just omit pairs,
+never halves.
 
 ---
 
@@ -95,31 +126,26 @@
 
 A loader MUST reject a map that:
 
-- Has no `schemaVersion` field, or `schemaVersion != 1`.
-- Has duplicate `cells[].id` values.
-- Has any `sides[].index` outside `0..sideCount-1`.
-- Has a `link.cellId` that doesn't exist in `cells`.
-- Has a `link.sideIndex` outside the target cell's range.
-- Has a non-reciprocal link (A → B without B → A on the matching sides).
-- Has a `stack` with `count <= 0` or `owner <= 0`.
+- Has `schemaVersion != 2`, or no `schemaVersion`
+- Has duplicate `cells[].id`
+- Has a `joins[]` entry naming a cell or side index that does not exist
+- Has a non-reciprocal join
+- Declares a **slot on an interior face**
+- Has a slot with **no `partner`**, or whose partner slot is never created
+- Has a non-reciprocal slot pairing
+- Has an `edge` outside `0..3`, or a `side` outside `0..sideCount-1`
+- Has a negative `owner`
+- Leaves any face **contested** — holding tiles of two different players
 
-These are exactly the same checks `BoardModel.Validate()` performs after deserialization.
+These are the same checks `BoardModel.Validate()` runs after deserialization.
 
----
-
-## Test Cases (Stage 3 must pass)
-
-- [ ] **Round-trip:** write → read → write produces identical JSON (after key sort).
-- [ ] **Reject `schemaVersion` missing.**
-- [ ] **Reject `schemaVersion` ≠ 1.**
-- [ ] **Reject dangling link** (`cellId` doesn't exist).
-- [ ] **Reject non-reciprocal link.**
-- [ ] **Reject duplicate cell IDs.**
-- [ ] **Reject `stack.count <= 0`.**
-- [ ] **Sparse sides** — a cell with only sides 0 and 2 populated round-trips with `sides: [..., index:0, ..., index:2, ...]` and others omitted.
+The lone-slot and contested-face rules are the two that carry gameplay meaning:
+a tile with no partner has nothing to expand across, and a contested face cannot be
+clicked by anybody (see WAVE_SPEC R1/R4).
 
 ---
 
 ## Future Versions
 
-When the schema must change, bump `schemaVersion` to 2 and add a `MapV2Migrator` that takes v1 → v2. Keep v1 readable indefinitely; never break old saved maps.
+Bump to 3 and add a migrator when the model changes again. The v1 → v2 jump deliberately
+had none: the two models share no meaningful structure.

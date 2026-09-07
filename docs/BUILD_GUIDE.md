@@ -1,12 +1,12 @@
 # WhoWhoo3D_2 — Build From Scratch
 
-> Step-by-step manual for building the new project at `c:\Users\osman\Desktop\OSMANS_PROJECTS\WhoWhoo3D_2` from an empty workspace.
+> Step-by-step manual for building the project from an empty workspace.
 >
 > This guide is **opinionated and concrete** — exact paths, exact package names, exact file order. Deviate only when you understand why.
 >
 > Read order before starting:
 > 1. [ARCHITECTURE.md](ARCHITECTURE.md) — the design
-> 2. [WAVE_SPEC.md](WAVE_SPEC.md) — fill in the TODOs first
+> 2. [WAVE_SPEC.md](WAVE_SPEC.md) — the gameplay rules
 > 3. [MAP_SCHEMA.md](MAP_SCHEMA.md) — the data contract
 > 4. This guide
 
@@ -18,14 +18,14 @@ These are the choices baked into this guide. If you want different, change them 
 
 | Decision | Default | Why |
 |---|---|---|
-| Unity version | **Unity 6 LTS** (Universal 3D / URP template) | Current LTS. |
+| Unity version | **Unity 6 LTS** (Universal 3D / URP template) | Current LTS (`6000.4.5f1`). |
 | Render pipeline | **URP** | Mobile/console portable, decent visuals out of the box. |
 | Input | **New Input System** | Legacy Input is deprecated; rebinding is built in. |
-| DI framework | **None initially** (manual ctor injection + ServiceLocator) | Avoid VContainer/Zenject lock-in until you actually need it. |
+| DI framework | **None** — serialized inspector references | 5 scene refs total, all with auto-resolving fallbacks. A registry is machinery for a problem this project does not have. |
 | Test framework | **Unity Test Framework + NUnit** | Built in. |
 | Topology model | **Graph (Cell / Side / SideLink)** — not cube-locked | Future-proofs for any polyhedron. See ARCHITECTURE §"Topology vs Geometry". |
 | Truth Pack location | **`/TruthPack/` standalone .NET 8 project** at the repo root, outside Assets/ | No Unity domain reload while testing core logic. Iterate fast. |
-| Multiplayer | **Deferred** until SP ships | Don't touch Netcode until Phase 9. |
+| Multiplayer | **Deferred** — see [TODO.md](TODO.md) §2 | Don't touch Netcode until the local game ships. |
 
 > If you instead want **cube-only model from day 1**, replace every "Cell" with "Cube", "Side" with "Face", and use the cube-locked WAVE_SPEC examples directly. Generalizing later means a model rewrite — accept that tradeoff knowingly.
 
@@ -34,16 +34,19 @@ These are the choices baked into this guide. If you want different, change them 
 ## Repo Layout (target)
 
 ```
-WhoWhoo3D_2/                          ← new Unity project (empty today)
+WhoWhoo3D_2/                          ← Unity project
 ├── Assets/
+│   ├── StreamingAssets/
+│   │   └── Maps/
 │   └── _Project/                     ← all game code here
 │       ├── Runtime/
 │       │   ├── Core/
+│       │   ├── Domain/
 │       │   ├── Gameplay/
 │       │   ├── Data/
 │       │   ├── Input/
 │       │   ├── UI/
-│       │   ├── Networking/           ← stays empty until Phase 9
+│       │   ├── Networking/           ← stays empty until Stage 13
 │       │   ├── MapEditor/
 │       │   └── Utils/
 │       ├── Editor/
@@ -270,9 +273,9 @@ In Unity → Window → Package Manager → install:
 
 - [ ] **Input System** (com.unity.inputsystem) — accept the prompt to switch input handling to "Both"
 - [ ] **Test Framework** (com.unity.test-framework) — usually pre-installed
-- [ ] **TextMeshPro** (com.unity.textmeshpro) — import TMP Essentials when prompted
+- [ ] **TextMeshPro** (com.unity.textmeshpro / com.unity.ugui) — import TMP Essentials when prompted
 - [ ] **Addressables** (com.unity.addressables) — optional, install if you plan to load maps from disk
-- [ ] **Netcode for GameObjects** — DO NOT install yet. Phase 9.
+- [ ] **Netcode for GameObjects** — DO NOT install yet. Deferred to Stage 13.
 
 ### 4.2 Create asmdefs
 
@@ -376,152 +379,206 @@ The layout strategy: take `Cell.position` from the map (a Vector3 in the v1 sche
 
 **Goal:** clickable tiles, player turns rotate, end-of-turn fires a wave.
 
+### 7.0 Pre-Stage 7 Fixes & Hardening
+- [x] Fix `MapDtos.cs` import to standard `Newtonsoft.Json`.
+- [x] Implement `BoardModel.Clone()` deep copy + unit tests.
+- [x] Fix `TileView` runtime material leak by using pre-allocated shared materials.
+- [x] Attach `BoxCollider` to cell GameObjects in `CellView` for raycast hit detection.
+- [x] Optimize `WaveSimulator` (remove redundant emission scan) and `WaveConfig.Default` (`static readonly`).
+
 ### 7.1 State machine
 
 In `_Project/Runtime/Gameplay/Turn/`:
 
-- [ ] `IGamePhase.cs` — `Enter`, `Tick`, `Exit`, `NextPhase`
-- [ ] `RoundStartPhase.cs`
-- [ ] `BoardWavePhase.cs` — runs `WaveSimulator.Simulate`, hands off to animator, waits for completion
-- [ ] `PlayerTurnPhase.cs` — waits for input, applies tile selection
-- [ ] `VictoryCheckPhase.cs`
-- [ ] `GameController.cs` — owns the phase machine; one MonoBehaviour, scene singleton (NOT static)
+- [x] `IGamePhase.cs` — `Enter`, `Tick(deltaTime)`, `Exit`, `IsComplete`, `NextPhase()`
+- [x] `RoundStartPhase.cs`
+- [x] `PlayerTurnPhase.cs` — waits for input (human) or plays automatically (AI)
+- [x] `BoardWavePhase.cs` — runs `WaveSimulator.Simulate`, hands off to animator, waits for completion
+- [x] `VictoryCheckPhase.cs`
+- [x] `GameController.cs` — owns the phase machine; one MonoBehaviour, scene singleton (NOT static)
+
+Two rules the phase machine has to keep:
+
+- **`Tick` takes `deltaTime` as a parameter** rather than reading `UnityEngine.Time`.
+  Edit Mode has no frame loop, so a phase that reads `Time.deltaTime` directly cannot
+  be tested without entering Play Mode.
+- **Transitions are pushed, not polled.** `GameController.OnCellClicked` advances the
+  machine itself. An earlier draft only advanced inside `Update()`, which made every
+  turn silently untestable in Edit Mode.
 
 ### 7.2 Players
 
 In `_Project/Runtime/Gameplay/Player/`:
 
-- [ ] `PlayerState.cs` — id, color, score, alive, inventory list
-- [ ] `PlayerRoster.cs` — list of PlayerStates, current turn index, NextAlive() helper
+- [x] `PlayerState.cs` — id, alive flag, `IsAi` flag, on-demand score
+- [x] `PlayerRoster.cs` — list of PlayerStates, current turn index, `AdvanceToNextAlive()`
+- [ ] Colour and inventory list (deferred to Stage 9 / 10)
 
 ### 7.3 Input
 
 In `_Project/Runtime/Input/`:
 
-- [ ] Create Input Actions asset `_Project/Settings/InputActions.inputactions`
-  - [ ] Action map "Game": Click, Pause, Ability1, Ability2, Ability3, Ability4
-- [ ] `PlayerInputHandler.cs` — reads actions, raycasts to find clicked `TileView`, publishes `TileClickedEvent`
+- [ ] Ensure Input Actions asset `_Project/Settings/InputActions.inputactions` configured (Click, Pause, Ability1-4)
+- [x] `PlayerInputHandler.cs` — reads actions, raycasts to find clicked `CellView`, publishes click event
 
-### 7.4 Wave animator
+### 7.4 AI opponent — DEFERRED
 
-In `_Project/Runtime/Gameplay/Wave/`:
-
-- [ ] `WaveAnimator.cs` — replays a `WaveResult` visually with tweens (DOTween or just `Mathf.Lerp` in coroutines)
-- [ ] On finish, signals `BoardWavePhase` to advance
+Built and tested, then deferred: the current goal is local player-versus-player.
+`GameController.enableAi` ships `false`. See [TODO.md](TODO.md) §1.
 
 ### 7.5 Test it
 
-- [ ] Manually click tiles, end turn, watch wave fire
-- [ ] PlayMode test: scripted scenario — load map, simulate 3 player clicks, assert end state
+- [x] Edit Mode: turn loop, click handling, AI move selection, AI-vs-AI game terminates
+- [ ] Manually click tiles in the Editor, end turn, watch wave fire
+- [ ] PlayMode test: scripted scenario — load map, simulate player clicks, assert end state
 
 ---
 
-## Stage 8 — Abilities (2-3 days)
+## Stage 8 — Wave Animation (2-3 days)
 
-**Goal:** a player can press 1-4 to use an ability that affects the board.
+In `_Project/Runtime/Gameplay/Wave/`:
 
-### 8.1 Data
+- [x] `WavePlaybackPlan.cs` — pure C#. Turns a `WaveResult` into a replayable timeline:
+      the pre-wave value of every touched side, plus one frame per chain step carrying that
+      step's changes and the tile flights to draw. No `UnityEngine` reference, so the
+      timeline is covered by Edit Mode tests.
+- [x] `WaveAnimator.cs` — replays the plan with coroutine lerps; flying tiles arc from the
+      emitting side to its linked target in the owner's colour.
+- [x] Signals `BoardWavePhase` when playback completes (`IsPlaying` goes false).
+- [ ] Highlights/VFX for captures vs friendly stacking (currently both just restack).
+- [ ] Camera nudge or screen shake on large captures.
 
-In `_Project/Runtime/Data/Abilities/`:
+Three rules this stage has to keep:
 
-- [ ] `AbilityDefinition.cs` — `[CreateAssetMenu]` ScriptableObject base. Fields: name, icon, cost, cooldown, range, executor type
-- [ ] Create concrete child SOs: `PushAbility.asset`, `FreezeAbility.asset`, `CaptureAbility.asset`
-
-### 8.2 Execution
-
-In `_Project/Runtime/Gameplay/Ability/`:
-
-- [ ] `IAbilityExecutor.cs` — `WaveResult Execute(BoardModel board, AbilityContext ctx)`
-- [ ] `PushAbilityExecutor.cs`, etc.
-- [ ] `AbilitySystem.cs` — looks up executor by type, calls Execute, hands result to WaveAnimator
-
-### 8.3 Tests
-
-- [ ] EditMode: each ability against a known board → assert expected board state
-- [ ] PlayMode: click ability key in scene, verify visible change
-
----
-
-## Stage 9 — UI (3-4 days)
-
-**Goal:** main menu, lobby, HUD, pause, victory.
-
-### 9.1 Scenes
-
-- [ ] `_Project/Scenes/MainMenu.unity` — Start, Load Map, Quit
-- [ ] `_Project/Scenes/Lobby.unity` — player slots (1-4), color pick, map picker, start button. Mode flag: SinglePlayer | LocalHotseat | Online (Online disabled until Phase 11)
-- [ ] HUD added to `Game.unity` — current player indicator, score per player, ability bar
-
-### 9.2 UI scripts
-
-In `_Project/Runtime/UI/`:
-
-- [ ] One MonoBehaviour per panel
-- [ ] Subscribe to `EventBus` events (`TurnEndedEvent`, `TileCapturedEvent`, etc.) — UI is the right place for the bus
-- [ ] Pause overlay listens to `PauseAction` from Input System
-
-### 9.3 SceneFlow
-
-In `_Project/Runtime/Core/SceneFlow/`:
-
-- [ ] `SceneLoader.cs` — fade out → load async → fade in. Always loads; do not gate on network state. Networking is a separate concern.
+- **The model is already final before the first frame plays.** `WaveSimulator` mutates the
+  board in `Enter()`. Animation rewinds the *views* (`SideView.ShowStack`) and walks them
+  forward; it must never write back to `BoardModel`. A skipped or interrupted animation
+  then cannot desync the game.
+- **Instant path stays first-class.** `WaveAnimator.CanPlay` is false outside Play Mode, so
+  Edit Mode tests and AI-vs-AI runs resolve waves with zero delay through the same code.
+- **`BoardWavePhase` polls, it does not subscribe.** This is why `IGamePhase.IsComplete` is
+  a property rather than a callback — Stage 8 is the case it was shaped for.
 
 ---
 
-## Stage 10 — Map Editor (3-4 days)
+## Stage 9 — Make the Game Legible (4-5 days)
 
-**Goal:** in-engine tool that places cubes, links neighbors, saves v1 JSON.
+**Goal:** a person who has never seen the game can sit down and play it. Right now the only
+way to know whose turn it is, or which tiles you may click, is the Console.
+
+### 9.1 Legal-move highlighting — do this first
+
+With ~40 white tiles on screen and the rule "one enemy tile locks the whole face", the
+player has no way to see what is clickable. This is not polish; without it the game is
+unplayable by anyone who has not read WAVE_SPEC.
+
+- [ ] Tint or outline slots where `BoardActions.CanClaim(board, slot, activePlayer)` is true
+- [ ] Dim faces locked by another player
+- [ ] Hover feedback on the slot under the pointer
+- [ ] Show which face is one tile from expanding — the key tactical read
+
+### 9.2 HUD
+
+In `_Project/Runtime/UI/HUD/`:
+
+- [ ] Turn banner: whose turn, in their colour
+- [ ] Per-player tile count (`BoardActions.ScoreFor`)
+- [ ] Wave indicator while `BoardWavePhase` is animating
+
+### 9.3 Victory and restart
+
+- [ ] Victory screen — `GameController.IsGameOver` / `Winner` are already exposed
+- [ ] Restart: `InitializeWithBoard` already resets game-over state, so this is a button
+- [ ] Quit / back to menu
+
+### 9.4 Local player setup
+
+Players are currently inferred from whichever tiles the map seeds. For a hot-seat game the
+player count must be a choice, not a map artifact.
+
+- [ ] Choose 2-4 players before starting
+- [ ] Assign each a start position on the board
+- [ ] Colour legend so players know which colour they are
+
+### 9.5 EventBus
+
+Stage 9 is the first real consumer, so `WhoWhoo3D.Core` finally gets sources.
+
+- [ ] `EventBus` in `Core/Events/`
+- [ ] Publish turn-changed / score-changed / player-eliminated / game-over
+- [ ] Replace the `Debug.Log` calls in the phases with events
+- [ ] Keep the phase machine **off** the bus — ordering matters there, so it stays direct calls
+
+---
+
+## Stage 9.6 — Debug Timeline (done)
+
+Built alongside Stage 9 because debugging the expansion rules by eye was not working.
+
+- [x] `GameHistory` / `HistoryEntry` (`Gameplay/History/`) — pure C#, no UnityEngine.
+- [x] `TimelineView` (`UI/Debug/`) — ◀ ▶ arrows, pause, step-one-wave-chain, revert.
+- [x] `WaveAnimator.Pause/Resume/StepOnce/StopAndSnapToModel`.
+- [x] `BoardView.ShowOwner/ClearOverrides` for painting a past state.
+
+Two rules this depends on:
+
+- **`SlotStateChange` carries both `Before` and `After`,** so history is exactly reversible
+  with no inverse-operation logic. Verified headlessly: 3342 changes over 60 turns reverse
+  to the opening board and replay to the final board, both exact.
+- **The arrows are a viewer, not an undo.** Scrubbing paints presentation overrides and
+  never touches `BoardModel`, so the phase machine cannot desync. Only "Revert here"
+  mutates, and it is a separate button on purpose.
+
+---
+
+## Stage 10 — Map Editor (4-5 days)
+
+**Goal:** author maps without hand-writing JSON.
+
+This has moved up the roadmap. Schema v2 slot pairings are not writable by hand — the only
+existing map was produced by a throwaway Python script. Without an editor the game has
+exactly one board.
 
 ### 10.1 Editor scene
 
-- [ ] `_Project/Scenes/MapEditor.unity`
-- [ ] Free camera (orbit + pan + zoom)
-- [ ] UI: place cube, delete cube, link/unlink sides, save, load
+- [ ] Place and delete cubes on a grid
+- [ ] Auto-join touching faces (both become interior)
+- [ ] Auto-wire the tile network by walking the exposed surface — the rule is in
+      [MAP_SCHEMA.md](MAP_SCHEMA.md) §"Finding a slot's partner"
+- [ ] Toggle individual slot pairs for sparse maps (always both halves, never one)
+- [ ] Paint starting ownership
 
-### 10.2 Editor scripts
+### 10.2 Save / load
 
-In `_Project/Runtime/MapEditor/`:
+- [ ] Write via `MapSerializer.Serialize`, read via `Deserialize`
+- [ ] Run `BoardModel.Validate()` before saving and refuse to write an invalid map
+- [ ] Save into `Assets/StreamingAssets/Maps/`
 
-- [ ] `MapEditorController.cs` — main coordinator
-- [ ] `CubePlacer.cs` — raycast-to-grid placement
-- [ ] `LinkTool.cs` — click side A then side B → link them
-- [ ] `MapSaver.cs` — uses `MapSerializer` with two distinct paths:
-  - **Bundled / default maps:** `Application.streamingAssetsPath/Maps/` — read-only in built games. Ship here.
-  - **User-created maps:** `Application.persistentDataPath/Maps/` — writable on all platforms. Save here.
-  - In the editor, both paths are writable; in a built game, only `persistentDataPath` is. Never assume `StreamingAssets` is writable at runtime.
+### 10.3 Pitfalls
 
-### 10.3 Pitfalls to avoid
-
-- [ ] **Use a monotonic counter or GUID** for cell IDs — never list count, deletes break it.
-- [ ] **Copy list before removing in a loop** — never mutate a list while iterating it.
-- [ ] **Validate before save** — run `BoardModel.Validate()` and refuse save on failure.
+- A slot with no partner is invalid. Create and delete pairs, never halves.
+- An interior face may not hold slots. Joining two cubes must strip any slots first.
+- Editor geometry must match `CubeGeometry.cs` exactly or tiles render on the wrong edges.
 
 ---
 
-## Stage 11 — Polish & Ship Singleplayer (1 week)
+## Stage 11 — Polish & Ship (1 week)
 
-- [ ] Audio hooks via EventBus (capture sound, wave whoosh, victory fanfare)
-- [ ] Particle FX for waves and abilities
-- [ ] Tutorial / first-time UX overlay
-- [ ] Build pipeline: PC standalone build that runs from a fresh machine
-- [ ] Playtest with 2-4 humans, log feedback
-- [ ] Tag: `git tag v1.0-singleplayer`
+- [ ] Two or three more maps built in the editor
+- [ ] Audio: claim, expand, capture, victory
+- [ ] VFX on capture and chain reactions
+- [ ] Camera: orbit and zoom around the cluster
+- [ ] Main menu → game → results flow through `SceneFlow`
+- [ ] Standalone build, run it outside the editor
+- [ ] Add URP Lit to Always Included Shaders (`SlotView.ResolveShader` warns if missing)
 
 ---
 
-## Stage 12 — Multiplayer (2-3 weeks, optional)
+## Deferred
 
-Command-based, not state-sync. See ARCHITECTURE §6.
-
-- [ ] Install Netcode for GameObjects
-- [ ] Define `MoveCommand`, `UseAbilityCommand`, `EndTurnCommand`
-- [ ] Define result events: `TileCapturedEvent`, `WaveResolvedEvent`, `TurnEndedEvent`
-- [ ] Authoritative host: `GameController` runs only on host
-- [ ] Validate commands on host, broadcast result events to clients
-- [ ] Clients re-apply deterministic transitions
-- [ ] ParrelSync test
-- [ ] Reconnect / disconnect handling
-- [ ] Lobby → matchmaking
+AI opponent, online multiplayer and the abilities system are **out of scope**. They live in
+[TODO.md](TODO.md) with their design notes intact. Do not start them while any stage above
+is open.
 
 ---
 
@@ -529,7 +586,7 @@ Command-based, not state-sync. See ARCHITECTURE §6.
 
 Build these fresh in `WhoWhoo3D_2/Assets/_Project/`:
 
-- [ ] **Cube prefab** — `Prefabs/Board/Cube.prefab`. MeshRenderer + MeshFilter only (no MonoBehaviours from your code; views attach at runtime).
+- [ ] **Cube prefab** — `Prefabs/Board/Cube.prefab`. MeshRenderer + MeshFilter + BoxCollider.
 - [ ] **Tile prefab** — `Prefabs/Board/Tile.prefab`. Single quad/cube with material-swap for ownership.
 - [ ] **Player color materials** — `Art/Materials/Player1.mat` ... `Player4.mat`. Distinct hues, high contrast.
 - [ ] **Sample map** — `StreamingAssets/Maps/sample.json` per MAP_SCHEMA. 4-8 cells, hand-written.
@@ -550,8 +607,6 @@ Build these fresh in `WhoWhoo3D_2/Assets/_Project/`:
 | Player's stash UI | `Inventory` |
 | Online play class prefix | `Multiplayer` |
 | Game mode | `GameMode` enum on `GameController`, NOT a duplicated class hierarchy |
-
----
 
 ## Common Pitfalls (Learned From Legacy)
 
@@ -574,9 +629,9 @@ Aim for one commit per checkbox completed. Tag:
 - `unity-truth-ported` — end of Stage 5
 - `board-view-v1` — end of Stage 6
 - `playable-loop-v1` — end of Stage 7
-- `abilities-v1` — end of Stage 8
-- `ui-v1` — end of Stage 9
+- `wave-animation-v1` — end of Stage 8
+- `playable-v1` — end of Stage 9 (legible, HUD, victory)
 - `editor-v1` — end of Stage 10
-- `v1.0-singleplayer` — end of Stage 11
+- `v1.0-local` — end of Stage 11
 
 If you go more than 2 days without a green test run + commit, stop and investigate why.

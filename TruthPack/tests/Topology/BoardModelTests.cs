@@ -309,4 +309,66 @@ public class BoardModelTests
 
         Assert.Equal(6, board.GetCell(A).TotalTileCount);
     }
+
+    // ── Clone tests ──────────────────────────────────────────────────
+
+    [Fact]
+    public void Clone_ProducesIndependentCopy_MutatingCloneDoesNotAffectOriginal()
+    {
+        var board = new BoardModel();
+        board.AddCell(A, Vec3.Zero, 6);
+        board.AddCell(B, new Vec3(1, 0, 0), 6);
+        board.LinkSides(new SideId(A, 0), new SideId(B, 0));
+        board.SetStack(new SideId(A, 0), new TileStack(P1, 3));
+
+        var clone = board.Clone();
+        clone.SetStack(new SideId(A, 0), new TileStack(P2, 1));
+
+        Assert.Equal(new TileStack(P1, 3), board.GetSide(new SideId(A, 0)).Stack);
+        Assert.Equal(new TileStack(P2, 1), clone.GetSide(new SideId(A, 0)).Stack);
+    }
+
+    [Fact]
+    public void Clone_PreservesLinks()
+    {
+        var board = new BoardModel();
+        board.AddCell(A, Vec3.Zero, 6);
+        board.AddCell(B, new Vec3(1, 0, 0), 6);
+        board.LinkSides(new SideId(A, 2), new SideId(B, 3));
+
+        var clone = board.Clone();
+
+        Assert.Equal(new SideLink(new SideId(B, 3)), clone.GetSide(new SideId(A, 2)).Link);
+        Assert.Equal(new SideLink(new SideId(A, 2)), clone.GetSide(new SideId(B, 3)).Link);
+    }
+
+    [Fact]
+    public void Clone_PassesValidation()
+    {
+        var board = new BoardModel();
+        board.AddCell(A, Vec3.Zero, 6);
+        board.AddCell(B, new Vec3(1, 0, 0), 6);
+        board.LinkSides(new SideId(A, 0), new SideId(B, 0));
+        board.SetStack(new SideId(A, 0), new TileStack(P1, 4));
+        board.SetStack(new SideId(B, 0), new TileStack(P2, 2));
+
+        var clone = board.Clone();
+        var result = clone.Validate();
+
+        Assert.True(result.IsValid, result.ToString());
+    }
+
+    [Fact]
+    public void Clone_PreservesCellCount()
+    {
+        var board = new BoardModel();
+        board.AddCell(A, Vec3.Zero, 6);
+        board.AddCell(B, new Vec3(1, 0, 0), 4);
+
+        var clone = board.Clone();
+
+        Assert.Equal(2, clone.Cells.Count);
+        Assert.Equal(6, clone.GetCell(A).Sides.Count);
+        Assert.Equal(4, clone.GetCell(B).Sides.Count);
+    }
 }

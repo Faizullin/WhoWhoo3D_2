@@ -1,178 +1,142 @@
-using Newtonsoft.Json.Linq;
+using System.Linq;
 using NUnit.Framework;
 using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Domain.Maps;
+using WhoWhoo3D.Tests.EditMode.Support;
 
-namespace WhoWhoo3D.Tests.EditMode.Maps;
-
-public class MapSerializerTests
+namespace WhoWhoo3D.Tests.EditMode.Maps
 {
-    private static readonly CellId A = new("cell_0001");
-    private static readonly CellId B = new("cell_0002");
-    private static readonly PlayerId P1 = new(1);
-    private static readonly MapMetadata Meta = new("TestMap", "2026-05-08T00:00:00+00:00");
-
-    private static BoardModel TwoLinkedCells()
+    public class MapSerializerTests
     {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, new Vec3(1, 0, 0), 6);
-        board.LinkSides(new SideId(A, 0), new SideId(B, 3));
-        return board;
-    }
+        private static MapMetadata Meta => new("Test", "2026-09-07T00:00:00+00:00");
 
-    [Test]
-    public void RoundTrip_ProducesIdenticalJson()
-    {
-        var board = TwoLinkedCells();
-        board.SetStack(new SideId(A, 0), new TileStack(P1, 2));
+        private const string MinimalMap = @"{
+          ""schemaVersion"": 2, ""name"": ""m"", ""createdAt"": ""x"",
+          ""cells"": [ { ""id"": ""a"", ""position"": {""x"":0,""y"":0,""z"":0}, ""sideCount"": 6,
+            ""joins"": [],
+            ""slots"": [
+              { ""side"": 0, ""edge"": 0, ""owner"": 1, ""partner"": {""cellId"":""a"",""sideIndex"":2,""edge"":0} },
+              { ""side"": 2, ""edge"": 0, ""owner"": 1, ""partner"": {""cellId"":""a"",""sideIndex"":0,""edge"":0} }
+            ] } ] }";
 
-        var json1 = MapSerializer.Serialize(board, Meta);
-        var board2 = MapSerializer.Deserialize(json1);
-        var json2 = MapSerializer.Serialize(board2, Meta);
-
-        Assert.AreEqual(json1, json2);
-    }
-
-    [Test]
-    public void Serialize_ContainsSchemaVersion1()
-    {
-        var json = MapSerializer.Serialize(TwoLinkedCells(), Meta);
-        StringAssert.Contains("\"schemaVersion\": 1", json);
-    }
-
-    [Test]
-    public void Serialize_SparseSides_EmptySidesOmitted()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, new Vec3(1, 0, 0), 6);
-        board.LinkSides(new SideId(A, 0), new SideId(B, 0));
-
-        var json = MapSerializer.Serialize(board, Meta);
-
-        var doc = JObject.Parse(json);
-        foreach (var cell in (JArray)doc["cells"])
+        [Test]
+        public void RoundTrip_PreservesTopologyAndOwners()
         {
-            var sides = ((JArray)cell["sides"]).Count;
-            Assert.AreEqual(1, sides);
+            var board = TestBoards.TwoCubes();
+            TestBoards.FillFace(board, new SideId(new CellId("cube_a"), 0), TestBoards.P1);
+
+            var restored = MapSerializer.Deserialize(MapSerializer.Serialize(board, Meta));
+
+            Assert.IsTrue(restored.Validate().IsValid, restored.Validate().ToString());
+            Assert.AreEqual(
+                board.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount)),
+                restored.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount)));
+            Assert.AreEqual(4, restored.GetSide(new SideId(new CellId("cube_a"), 0)).OwnedCount(TestBoards.P1));
+            Assert.IsTrue(restored.GetSide(new SideId(new CellId("cube_a"), 2)).IsInterior);
         }
-    }
 
-    [Test]
-    public void Deserialize_RestoresBoardModel_Correctly()
-    {
-        var board = TwoLinkedCells();
-        board.SetStack(new SideId(A, 0), new TileStack(P1, 3));
+        [Test]
+        public void Deserialize_AcceptsAMinimalPair()
+        {
+            var board = MapSerializer.Deserialize(MinimalMap);
 
-        var restored = MapSerializer.Deserialize(MapSerializer.Serialize(board, Meta));
+            Assert.IsTrue(board.Validate().IsValid);
+            Assert.AreEqual(1, board.GetSide(new SideId(new CellId("a"), 0)).SlotCount);
+        }
 
-        Assert.AreEqual(new TileStack(P1, 3), restored.GetSide(new SideId(A, 0)).Stack);
-        Assert.AreEqual(new SideLink(new SideId(B, 3)), restored.GetSide(new SideId(A, 0)).Link);
-        Assert.AreEqual(new SideLink(new SideId(A, 0)), restored.GetSide(new SideId(B, 3)).Link);
-        Assert.IsTrue(restored.Validate().IsValid);
-    }
+        [Test]
+        public void Deserialize_RejectsWrongSchemaVersion()
+        {
+            var json = MinimalMap.Replace("\"schemaVersion\": 2", "\"schemaVersion\": 1");
+            Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
+        }
 
-    [Test]
-    public void Reject_MissingSchemaVersion()
-    {
-        var json = "{\"name\":\"x\",\"createdAt\":\"2026-01-01T00:00:00+00:00\",\"cells\":[]}";
-        var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
-        StringAssert.Contains("schemaVersion", ex.Message);
-    }
+        [Test]
+        public void Deserialize_RejectsMalformedJson()
+        {
+            Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize("{ not json"));
+        }
 
-    [Test]
-    public void Reject_WrongSchemaVersion()
-    {
-        var json = "{\"schemaVersion\":99,\"name\":\"x\",\"createdAt\":\"2026-01-01T00:00:00+00:00\",\"cells\":[]}";
-        var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
-        StringAssert.Contains("99", ex.Message);
-    }
+        [Test]
+        public void Deserialize_RejectsDuplicateCellIds()
+        {
+            var json = MinimalMap.Replace("\"cells\": [ {", "\"cells\": [ { \"id\": \"a\", \"sideCount\": 6, \"slots\": [] }, {");
+            Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
+        }
 
-    [Test]
-    public void Reject_DuplicateCellId()
-    {
-        var json = @"{
-  ""schemaVersion"": 1,
-  ""name"": ""x"",
-  ""createdAt"": ""2026-01-01T00:00:00+00:00"",
-  ""cells"": [
-    { ""id"": ""cell_0001"", ""position"": {""x"":0,""y"":0,""z"":0}, ""sideCount"": 6, ""sides"": [] },
-    { ""id"": ""cell_0001"", ""position"": {""x"":1,""y"":0,""z"":0}, ""sideCount"": 6, ""sides"": [] }
-  ]
-}";
-        var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
-        StringAssert.Contains("Duplicate", ex.Message);
-    }
+        [Test]
+        public void Deserialize_RejectsASlotWithNoPartnerDeclared()
+        {
+            var json = MinimalMap.Replace(
+                @"{ ""side"": 0, ""edge"": 0, ""owner"": 1, ""partner"": {""cellId"":""a"",""sideIndex"":2,""edge"":0} },",
+                @"{ ""side"": 0, ""edge"": 0, ""owner"": 1 },");
 
-    [Test]
-    public void Reject_DanglingLink()
-    {
-        var json = @"{
-  ""schemaVersion"": 1,
-  ""name"": ""x"",
-  ""createdAt"": ""2026-01-01T00:00:00+00:00"",
-  ""cells"": [
-    {
-      ""id"": ""cell_0001"",
-      ""position"": {""x"":0,""y"":0,""z"":0},
-      ""sideCount"": 6,
-      ""sides"": [
-        { ""index"": 0, ""link"": { ""cellId"": ""cell_XXXX"", ""sideIndex"": 0 } }
-      ]
-    }
-  ]
-}";
-        Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
-    }
+            var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
+            StringAssert.Contains("pairs", ex.Message);
+        }
 
-    [Test]
-    public void Reject_NonReciprocalLink()
-    {
-        var json = @"{
-  ""schemaVersion"": 1,
-  ""name"": ""x"",
-  ""createdAt"": ""2026-01-01T00:00:00+00:00"",
-  ""cells"": [
-    {
-      ""id"": ""cell_0001"",
-      ""position"": {""x"":0,""y"":0,""z"":0},
-      ""sideCount"": 6,
-      ""sides"": [
-        { ""index"": 0, ""link"": { ""cellId"": ""cell_0002"", ""sideIndex"": 0 } }
-      ]
-    },
-    {
-      ""id"": ""cell_0002"",
-      ""position"": {""x"":1,""y"":0,""z"":0},
-      ""sideCount"": 6,
-      ""sides"": []
-    }
-  ]
-}";
-        var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
-        StringAssert.Contains("reciprocal", ex.Message);
-    }
+        [Test]
+        public void Deserialize_RejectsALoneSlotWhosePartnerIsNeverCreated()
+        {
+            // Declares one half only: the partner slot is never listed by the other face.
+            const string json = @"{
+              ""schemaVersion"": 2, ""name"": ""m"", ""createdAt"": ""x"",
+              ""cells"": [ { ""id"": ""a"", ""position"": {""x"":0,""y"":0,""z"":0}, ""sideCount"": 6,
+                ""joins"": [], ""slots"": [
+                  { ""side"": 0, ""edge"": 0, ""owner"": 0, ""partner"": {""cellId"":""zzz"",""sideIndex"":2,""edge"":0} }
+                ] } ] }";
 
-    [Test]
-    public void Reject_NonPositiveStackCount()
-    {
-        var json = @"{
-  ""schemaVersion"": 1,
-  ""name"": ""x"",
-  ""createdAt"": ""2026-01-01T00:00:00+00:00"",
-  ""cells"": [
-    {
-      ""id"": ""cell_0001"",
-      ""position"": {""x"":0,""y"":0,""z"":0},
-      ""sideCount"": 6,
-      ""sides"": [
-        { ""index"": 0, ""stack"": { ""owner"": 1, ""count"": 0 } }
-      ]
-    }
-  ]
-}";
-        var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
-        StringAssert.Contains("count", ex.Message);
+            Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
+        }
+
+        [Test]
+        public void Deserialize_RejectsSlotsOnAnInteriorFace()
+        {
+            const string json = @"{
+              ""schemaVersion"": 2, ""name"": ""m"", ""createdAt"": ""x"",
+              ""cells"": [
+                { ""id"": ""a"", ""position"": {""x"":0,""y"":0,""z"":0}, ""sideCount"": 6,
+                  ""joins"": [ {""side"":2,""cellId"":""b"",""sideIndex"":3} ],
+                  ""slots"": [
+                    { ""side"": 2, ""edge"": 0, ""owner"": 0, ""partner"": {""cellId"":""a"",""sideIndex"":0,""edge"":0} },
+                    { ""side"": 0, ""edge"": 0, ""owner"": 0, ""partner"": {""cellId"":""a"",""sideIndex"":2,""edge"":0} }
+                  ] },
+                { ""id"": ""b"", ""position"": {""x"":1,""y"":0,""z"":0}, ""sideCount"": 6,
+                  ""joins"": [ {""side"":3,""cellId"":""a"",""sideIndex"":2} ], ""slots"": [] } ] }";
+
+            Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
+        }
+
+        [Test]
+        public void Deserialize_RejectsAContestedFace()
+        {
+            // Two faces each held by a different player is legal; one face holding both is not.
+            const string contested = @"{
+              ""schemaVersion"": 2, ""name"": ""m"", ""createdAt"": ""x"",
+              ""cells"": [ { ""id"": ""a"", ""position"": {""x"":0,""y"":0,""z"":0}, ""sideCount"": 6,
+                ""joins"": [], ""slots"": [
+                  { ""side"": 0, ""edge"": 0, ""owner"": 1, ""partner"": {""cellId"":""a"",""sideIndex"":2,""edge"":0} },
+                  { ""side"": 2, ""edge"": 0, ""owner"": 1, ""partner"": {""cellId"":""a"",""sideIndex"":0,""edge"":0} },
+                  { ""side"": 0, ""edge"": 1, ""owner"": 2, ""partner"": {""cellId"":""a"",""sideIndex"":3,""edge"":0} },
+                  { ""side"": 3, ""edge"": 0, ""owner"": 2, ""partner"": {""cellId"":""a"",""sideIndex"":0,""edge"":1} }
+                ] } ] }";
+
+            var ex = Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(contested));
+            StringAssert.Contains("contested", ex.Message);
+        }
+
+        [Test]
+        public void Deserialize_RejectsNegativeOwner()
+        {
+            var json = MinimalMap.Replace(@"""owner"": 1, ""partner"": {""cellId"":""a"",""sideIndex"":2", @"""owner"": -3, ""partner"": {""cellId"":""a"",""sideIndex"":2");
+            Assert.Throws<MapDeserializationException>(() => MapSerializer.Deserialize(json));
+        }
+
+        [Test]
+        public void SerializedMapDeclaresSchemaVersionTwo()
+        {
+            var json = MapSerializer.Serialize(TestBoards.SingleCube(), Meta);
+            StringAssert.Contains("\"schemaVersion\": 2", json);
+        }
     }
 }

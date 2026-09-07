@@ -8,53 +8,64 @@ namespace WhoWhoo3D.Domain.Maps;
 
 public static class MapSerializer
 {
-    private const int SupportedVersion = 1;
-
-    private static readonly JsonSerializerSettings WriteSettings = new()
-    {
-        Formatting = Formatting.Indented,
-        NullValueHandling = NullValueHandling.Ignore,
-    };
-
-    private static readonly JsonSerializerSettings ReadSettings = new();
+    public const int SchemaVersion = 2;
 
     public static string Serialize(BoardModel board, MapMetadata metadata)
     {
         var dto = new MapDto
         {
-            SchemaVersion = SupportedVersion,
+            SchemaVersion = SchemaVersion,
             Name = metadata.Name,
             CreatedAt = metadata.CreatedAt,
-            Cells = board.Cells.Values
-                .OrderBy(c => c.Id.Value, StringComparer.Ordinal)
-                .Select(cell => new CellDto
-                {
-                    Id        = cell.Id.Value,
-                    Position  = new Vec3Dto { X = cell.Position.X, Y = cell.Position.Y, Z = cell.Position.Z },
-                    SideCount = cell.Sides.Count,
-                    Sides     = cell.Sides
-                        .Where(s => !s.Stack.IsEmpty || s.Link.HasValue)
-                        .OrderBy(s => s.LocalIndex)
-                        .Select(s => new SideDto
-                        {
-                            Index = s.LocalIndex,
-                            Stack = s.Stack.IsEmpty ? null : new TileStackDto
-                            {
-                                Owner = s.Stack.Owner.Value,
-                                Count = s.Stack.Count,
-                            },
-                            Link = s.Link.HasValue ? new SideLinkDto
-                            {
-                                CellId    = s.Link.Value.Other.Cell.Value,
-                                SideIndex = s.Link.Value.Other.LocalIndex,
-                            } : null,
-                        })
-                        .ToList(),
-                })
-                .ToList(),
+            Cells = board.Cells
+                .OrderBy(kv => kv.Key.Value, StringComparer.Ordinal)
+                .Select(kv => ToDto(kv.Value))
+                .ToList()
         };
 
-        return JsonConvert.SerializeObject(dto, WriteSettings);
+        return JsonConvert.SerializeObject(dto, Formatting.Indented);
+    }
+
+    private static CellDto ToDto(Cell cell)
+    {
+        var dto = new CellDto
+        {
+            Id = cell.Id.Value,
+            Position = new Vec3Dto { X = cell.Position.X, Y = cell.Position.Y, Z = cell.Position.Z },
+            SideCount = cell.Sides.Count
+        };
+
+        foreach (var side in cell.Sides)
+        {
+            if (side.Link.HasValue)
+            {
+                var other = side.Link.Value.Other;
+                dto.Joins.Add(new JoinDto
+                {
+                    Side = side.LocalIndex,
+                    CellId = other.Cell.Value,
+                    SideIndex = other.LocalIndex
+                });
+            }
+
+            foreach (var slot in side.Slots)
+            {
+                dto.Slots.Add(new SlotDto
+                {
+                    Side = side.LocalIndex,
+                    Edge = slot.Id.Edge,
+                    Owner = slot.Owner.Value,
+                    Partner = new SlotRefDto
+                    {
+                        CellId = slot.Partner.Side.Cell.Value,
+                        SideIndex = slot.Partner.Side.LocalIndex,
+                        Edge = slot.Partner.Edge
+                    }
+                });
+            }
+        }
+
+        return dto;
     }
 
     public static BoardModel Deserialize(string json)
@@ -62,117 +73,120 @@ public static class MapSerializer
         MapDto dto;
         try
         {
-            dto = JsonConvert.DeserializeObject<MapDto>(json, ReadSettings)
-                  ?? throw new MapDeserializationException("JSON root was null.");
+            dto = JsonConvert.DeserializeObject<MapDto>(json);
         }
         catch (JsonException ex)
         {
-            throw new MapDeserializationException($"Invalid JSON: {ex.Message}");
+            throw new MapDeserializationException($"Map JSON is malformed: {ex.Message}");
         }
 
-        if (dto.SchemaVersion == 0)
-            throw new MapDeserializationException("'schemaVersion' field is missing or zero.");
-        if (dto.SchemaVersion != SupportedVersion)
+        if (dto == null)
+            throw new MapDeserializationException("Map JSON is empty.");
+        if (dto.SchemaVersion != SchemaVersion)
             throw new MapDeserializationException(
-                $"Unsupported schemaVersion {dto.SchemaVersion}; expected {SupportedVersion}.");
-
-        var seenIds = new HashSet<string>();
-        foreach (var cell in dto.Cells)
-        {
-            if (!seenIds.Add(cell.Id))
-                throw new MapDeserializationException($"Duplicate cell id '{cell.Id}'.");
-        }
-
-        ValidateStackDtos(dto);
-        ValidateLinkReciprocity(dto);
+                $"Unsupported schemaVersion {dto.SchemaVersion}; expected {SchemaVersion}.");
 
         var board = new BoardModel();
-        foreach (var cell in dto.Cells)
-        {
-            var id  = new CellId(cell.Id);
-            var pos = new Vec3(cell.Position.X, cell.Position.Y, cell.Position.Z);
-            board.AddCell(id, pos, cell.SideCount);
-        }
 
         foreach (var cellDto in dto.Cells)
         {
-            var cellId = new CellId(cellDto.Id);
-            foreach (var sideDto in cellDto.Sides)
-            {
-                if (sideDto.Stack is { } stackDto)
-                    board.SetStack(new SideId(cellId, sideDto.Index),
-                        new TileStack(new PlayerId(stackDto.Owner), stackDto.Count));
-            }
+            if (string.IsNullOrEmpty(cellDto.Id))
+                throw new MapDeserializationException("Cell is missing an id.");
+            if (board.Cells.ContainsKey(new CellId(cellDto.Id)))
+                throw new MapDeserializationException($"Duplicate cell id '{cellDto.Id}'.");
+
+            var pos = cellDto.Position ?? new Vec3Dto();
+            board.AddCell(new CellId(cellDto.Id), new Vec3(pos.X, pos.Y, pos.Z), cellDto.SideCount);
         }
 
-        var processed = new HashSet<(SideId, SideId)>();
-        foreach (var cellDto in dto.Cells)
-        {
-            var cellId = new CellId(cellDto.Id);
-            foreach (var sideDto in cellDto.Sides)
-            {
-                if (sideDto.Link is not { } linkDto) continue;
-
-                var a = new SideId(cellId, sideDto.Index);
-                var b = new SideId(new CellId(linkDto.CellId), linkDto.SideIndex);
-
-                var key = string.CompareOrdinal(a.Cell.Value, b.Cell.Value) <= 0
-                    ? (a, b)
-                    : (b, a);
-
-                if (!processed.Add(key)) continue;
-
-                try
-                {
-                    board.LinkSides(a, b);
-                }
-                catch (Exception ex)
-                {
-                    throw new MapDeserializationException(
-                        $"Cannot link {a} ↔ {b}: {ex.Message}");
-                }
-            }
-        }
+        // Joins before slots: a join marks both faces interior, and slots are rejected there.
+        ApplyJoins(board, dto);
+        ApplySlots(board, dto);
 
         var validation = board.Validate();
         if (!validation.IsValid)
-            throw new MapDeserializationException(
-                $"Map failed validation: {validation}");
+            throw new MapDeserializationException(validation.ToString());
 
         return board;
     }
 
-    private static void ValidateLinkReciprocity(MapDto dto)
+    private static void ApplyJoins(BoardModel board, MapDto dto)
     {
-        var declared = new HashSet<(string cellId, int sideIndex, string targetCellId, int targetSideIndex)>();
-        foreach (var cell in dto.Cells)
-            foreach (var side in cell.Sides)
-                if (side.Link is { } link)
-                    declared.Add((cell.Id, side.Index, link.CellId, link.SideIndex));
+        var done = new HashSet<(string, int)>();
 
-        foreach (var (cellId, sideIndex, targetCellId, targetSideIndex) in declared)
+        foreach (var cellDto in dto.Cells)
         {
-            if (!declared.Contains((targetCellId, targetSideIndex, cellId, sideIndex)))
-                throw new MapDeserializationException(
-                    $"Link from '{cellId}'[{sideIndex}] → '{targetCellId}'[{targetSideIndex}] " +
-                    $"is not reciprocal: the target side does not declare the reverse link.");
+            foreach (var join in cellDto.Joins ?? new List<JoinDto>())
+            {
+                var a = new SideId(new CellId(cellDto.Id), join.Side);
+                var b = new SideId(new CellId(join.CellId), join.SideIndex);
+
+                // Both cells list the join; apply it once.
+                if (!done.Add((cellDto.Id, join.Side))) continue;
+                if (done.Contains((join.CellId, join.SideIndex))) continue;
+                done.Add((join.CellId, join.SideIndex));
+
+                try
+                {
+                    board.JoinSides(a, b);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException or ArgumentOutOfRangeException)
+                {
+                    throw new MapDeserializationException($"Invalid join {a} → {b}: {ex.Message}");
+                }
+            }
         }
     }
 
-    private static void ValidateStackDtos(MapDto dto)
+    private static void ApplySlots(BoardModel board, MapDto dto)
     {
-        foreach (var cell in dto.Cells)
+        var created = new HashSet<(string, int, int)>();
+        var owners = new List<(SlotId Slot, int Owner)>();
+
+        foreach (var cellDto in dto.Cells)
         {
-            foreach (var side in cell.Sides)
+            foreach (var slotDto in cellDto.Slots ?? new List<SlotDto>())
             {
-                if (side.Stack is not { } s) continue;
-                if (s.Count <= 0)
+                if (slotDto.Partner == null)
                     throw new MapDeserializationException(
-                        $"Cell '{cell.Id}' side {side.Index}: stack.count must be > 0 (got {s.Count}).");
-                if (s.Owner <= 0)
-                    throw new MapDeserializationException(
-                        $"Cell '{cell.Id}' side {side.Index}: stack.owner must be > 0 (got {s.Owner}).");
+                        $"Slot {cellDto.Id}[{slotDto.Side}]@{slotDto.Edge} has no partner; tiles must exist in pairs.");
+
+                var a = new SlotId(new SideId(new CellId(cellDto.Id), slotDto.Side), slotDto.Edge);
+                var b = new SlotId(
+                    new SideId(new CellId(slotDto.Partner.CellId), slotDto.Partner.SideIndex),
+                    slotDto.Partner.Edge);
+
+                owners.Add((a, slotDto.Owner));
+
+                var keyA = (cellDto.Id, slotDto.Side, slotDto.Edge);
+                var keyB = (slotDto.Partner.CellId, slotDto.Partner.SideIndex, slotDto.Partner.Edge);
+                if (created.Contains(keyA) || created.Contains(keyB)) continue;
+
+                created.Add(keyA);
+                created.Add(keyB);
+
+                try
+                {
+                    board.AddSlotPair(a, b);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException or ArgumentOutOfRangeException)
+                {
+                    throw new MapDeserializationException($"Invalid slot pair {a} ↔ {b}: {ex.Message}");
+                }
             }
+        }
+
+        foreach (var (slotId, owner) in owners)
+        {
+            if (owner < 0)
+                throw new MapDeserializationException($"Slot {slotId} has negative owner {owner}.");
+            if (owner == 0) continue;
+
+            var slot = board.GetSlot(slotId);
+            if (slot == null)
+                throw new MapDeserializationException($"Slot {slotId} was never created.");
+
+            slot.Owner = new PlayerId(owner);
         }
     }
 }

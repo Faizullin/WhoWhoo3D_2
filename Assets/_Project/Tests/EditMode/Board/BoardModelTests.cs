@@ -1,313 +1,181 @@
+using System.Linq;
 using NUnit.Framework;
-using System;
-using System.Collections.Generic;
 using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Tests.EditMode.Support;
 
-namespace WhoWhoo3D.Tests.EditMode.Board;
-
-public class BoardModelTests
+namespace WhoWhoo3D.Tests.EditMode.Board
 {
-    private static readonly CellId A = new("A");
-    private static readonly CellId B = new("B");
-    private static readonly PlayerId P1 = new(1);
-    private static readonly PlayerId P2 = new(2);
-
-    [Test]
-    public void AddCell_AssignsIdAndExposesViaCellsDictionary()
+    public class BoardModelTests
     {
-        var board = new BoardModel();
-        var cell = board.AddCell(A, Vec3.Zero, sideCount: 6);
+        private static readonly PlayerId P1 = TestBoards.P1;
+        private static readonly PlayerId P2 = TestBoards.P2;
+        private static readonly CellId A = new("cube_a");
 
-        Assert.AreEqual(A, cell.Id);
-        Assert.AreEqual(6, cell.Sides.Count);
-        Assert.AreSame(cell, board.GetCell(A));
-        Assert.IsTrue(board.Cells.ContainsKey(A));
-    }
+        [Test]
+        public void SingleCube_WiresTwelveReciprocalPairs()
+        {
+            var board = TestBoards.SingleCube("cube_a");
 
-    [Test]
-    public void AddCell_RejectsNoneId()
-    {
-        var board = new BoardModel();
-        Assert.Throws<ArgumentException>(() => board.AddCell(CellId.None, Vec3.Zero, 6));
-    }
+            int slots = board.GetCell(A).Sides.Sum(s => s.SlotCount);
+            Assert.AreEqual(24, slots, "6 faces x 4 edges = 24 slot halves.");
+            Assert.IsTrue(board.Validate().IsValid, board.Validate().ToString());
+        }
 
-    [Test]
-    public void AddCell_RejectsDuplicateId()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        Assert.Throws<InvalidOperationException>(() => board.AddCell(A, Vec3.Zero, 6));
-    }
+        [Test]
+        public void TwoCubes_JoinedFacesAreInteriorAndBare()
+        {
+            var board = TestBoards.TwoCubes();
 
-    [TestCase(0)]
-    [TestCase(-1)]
-    [TestCase(-100)]
-    public void AddCell_RejectsInvalidSideCount(int sideCount)
-    {
-        var board = new BoardModel();
-        Assert.Throws<ArgumentOutOfRangeException>(() => board.AddCell(A, Vec3.Zero, sideCount));
-    }
+            var joined = board.GetSide(new SideId(new CellId("cube_a"), 2));
+            Assert.IsTrue(joined.IsInterior);
+            Assert.AreEqual(0, joined.SlotCount, "An interior face must hold no slots.");
+            Assert.IsTrue(board.Validate().IsValid, board.Validate().ToString());
+        }
 
-    [Test]
-    public void LinkSides_BothSidesShareLink()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, new Vec3(1, 0, 0), 6);
+        [Test]
+        public void TwoCubes_ExposedSurfaceHasFortySlots()
+        {
+            var board = TestBoards.TwoCubes();
 
-        var sideA = new SideId(A, 2);
-        var sideB = new SideId(B, 4);
-        board.LinkSides(sideA, sideB);
+            int slots = board.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount));
+            Assert.AreEqual(40, slots, "10 exposed faces x 4 edges.");
+        }
 
-        Assert.AreEqual(new SideLink(sideB), board.GetSide(sideA).Link);
-        Assert.AreEqual(new SideLink(sideA), board.GetSide(sideB).Link);
-    }
+        [Test]
+        public void JoinSides_RejectsAFaceThatAlreadyHoldsSlots()
+        {
+            var board = TestBoards.SingleCube("cube_a");
+            var other = new CellId("cube_b");
+            board.AddCell(other, new Vec3(1, 0, 0), 6);
 
-    [Test]
-    public void LinkSides_RejectsAlreadyLinkedSourceSide()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, Vec3.Zero, 6);
-        var c = new CellId("C");
-        board.AddCell(c, Vec3.Zero, 6);
+            // Face 2 was wired with slots by SingleCube, so it cannot become interior.
+            Assert.Throws<System.InvalidOperationException>(
+                () => board.JoinSides(new SideId(A, 2), new SideId(other, 3)));
+        }
 
-        board.LinkSides(new SideId(A, 0), new SideId(B, 0));
-        Assert.Throws<InvalidOperationException>(() =>
-            board.LinkSides(new SideId(A, 0), new SideId(c, 0)));
-    }
+        [Test]
+        public void AddSlotPair_RejectsInteriorFaces()
+        {
+            var board = new BoardModel();
+            var a = new CellId("a");
+            var b = new CellId("b");
+            board.AddCell(a, Vec3.Zero, 6);
+            board.AddCell(b, new Vec3(1, 0, 0), 6);
+            board.JoinSides(new SideId(a, 2), new SideId(b, 3));
 
-    [Test]
-    public void LinkSides_RejectsAlreadyLinkedTargetSide()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, Vec3.Zero, 6);
-        var c = new CellId("C");
-        board.AddCell(c, Vec3.Zero, 6);
+            Assert.Throws<System.InvalidOperationException>(() => board.AddSlotPair(
+                new SlotId(new SideId(a, 2), 0),
+                new SlotId(new SideId(a, 0), 0)));
+        }
 
-        board.LinkSides(new SideId(A, 0), new SideId(B, 0));
-        Assert.Throws<InvalidOperationException>(() =>
-            board.LinkSides(new SideId(c, 0), new SideId(B, 0)));
-    }
+        [Test]
+        public void Validate_RejectsAContestedFace()
+        {
+            var board = TestBoards.SingleCube("cube_a");
+            var side = board.GetSide(new SideId(A, 0));
+            var slots = side.Slots.ToList();
 
-    [Test]
-    public void LinkSides_RejectsSelfLink()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
+            board.SetOwner(slots[0].Id, P1);
+            board.SetOwner(slots[1].Id, P2);
 
-        Assert.Throws<InvalidOperationException>(() =>
-            board.LinkSides(new SideId(A, 0), new SideId(A, 1)));
-    }
+            var result = board.Validate();
+            Assert.IsFalse(result.IsValid, "A face holding two players' tiles is invalid.");
+            StringAssert.Contains("contested", result.ToString());
+        }
 
-    [Test]
-    public void LinkSides_RejectsMissingCell()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
+        [Test]
+        public void SetOwner_AndRelease()
+        {
+            var board = TestBoards.SingleCube("cube_a");
+            var slot = board.GetSide(new SideId(A, 0)).Slots.First();
 
-        Assert.Throws<KeyNotFoundException>(() =>
-            board.LinkSides(new SideId(A, 0), new SideId(B, 0)));
-    }
+            board.SetOwner(slot.Id, P1);
+            Assert.AreEqual(P1, board.GetSlot(slot.Id).Owner);
+            Assert.IsFalse(board.GetSlot(slot.Id).IsNeutral);
 
-    [Test]
-    public void LinkSides_RejectsOutOfRangeSideIndex()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, Vec3.Zero, 6);
+            board.SetOwner(slot.Id, PlayerId.None);
+            Assert.IsTrue(board.GetSlot(slot.Id).IsNeutral);
+        }
 
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            board.LinkSides(new SideId(A, 99), new SideId(B, 0)));
-    }
+        [Test]
+        public void IsFull_OnlyWhenEverySlotIsOneOwner()
+        {
+            var board = TestBoards.SingleCube("cube_a");
+            var sideId = new SideId(A, 0);
+            var side = board.GetSide(sideId);
+            var slots = side.Slots.ToList();
 
-    [Test]
-    public void Validate_PassesOnReciprocalLinks()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, Vec3.Zero, 6);
-        board.LinkSides(new SideId(A, 1), new SideId(B, 3));
+            Assert.IsFalse(side.IsFull(out _), "All-white face is not full.");
 
-        var result = board.Validate();
-        Assert.IsTrue(result.IsValid, result.ToString());
-    }
+            for (int i = 0; i < slots.Count - 1; i++)
+                board.SetOwner(slots[i].Id, P1);
+            Assert.IsFalse(side.IsFull(out _), "One white slot left means not full.");
 
-    [Test]
-    public void Validate_PassesOnEmptyBoard()
-    {
-        var board = new BoardModel();
-        Assert.IsTrue(board.Validate().IsValid);
-    }
+            board.SetOwner(slots[^1].Id, P1);
+            Assert.IsTrue(side.IsFull(out var owner));
+            Assert.AreEqual(P1, owner);
+        }
 
-    [Test]
-    public void Validate_FailsOnDanglingLink()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        var sideA = board.GetSide(new SideId(A, 0));
-        sideA.Link = new SideLink(new SideId(B, 0));
+        [Test]
+        public void IsFull_IsRelativeToTheFacesOwnSlotCount()
+        {
+            // A face with two slots fires on two, not four.
+            var board = new BoardModel();
+            var a = new CellId("a");
+            board.AddCell(a, Vec3.Zero, 6);
+            board.AddSlotPair(new SlotId(new SideId(a, 0), 0), new SlotId(new SideId(a, 2), 0));
+            board.AddSlotPair(new SlotId(new SideId(a, 0), 1), new SlotId(new SideId(a, 3), 0));
 
-        var result = board.Validate();
-        Assert.IsFalse(result.IsValid);
-        Assert.AreEqual(1, result.Errors.Count);
-        StringAssert.Contains("non-existent cell", result.Errors[0]);
-    }
+            var side = board.GetSide(new SideId(a, 0));
+            Assert.AreEqual(2, side.SlotCount);
 
-    [Test]
-    public void Validate_FailsOnNonReciprocalLink()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 6);
-        board.AddCell(B, Vec3.Zero, 6);
+            foreach (var slot in side.Slots.ToList())
+                board.SetOwner(slot.Id, P1);
 
-        var sideA = board.GetSide(new SideId(A, 0));
-        sideA.Link = new SideLink(new SideId(B, 0));
+            Assert.IsTrue(side.IsFull(out var owner), "Two of two counts as full.");
+            Assert.AreEqual(P1, owner);
+        }
 
-        var result = board.Validate();
-        Assert.IsFalse(result.IsValid);
-        StringAssert.Contains("not reciprocal", result.Errors[0]);
-    }
+        [Test]
+        public void ClearSide_ReleasesEverySlotToWhite()
+        {
+            var board = TestBoards.SingleCube("cube_a");
+            var sideId = new SideId(A, 0);
+            TestBoards.FillFace(board, sideId, P1);
 
-    [Test]
-    public void PlayerId_None_IsZero()
-    {
-        Assert.IsTrue(PlayerId.None.IsNone);
-        Assert.IsFalse(P1.IsNone);
-    }
+            board.ClearSide(sideId);
 
-    [Test]
-    public void Side_StartsWithEmptyStack()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        Assert.IsTrue(board.GetSide(new SideId(A, 0)).Stack.IsEmpty);
-    }
+            Assert.IsTrue(board.GetSide(sideId).Slots.All(s => s.IsNeutral));
+        }
 
-    [Test]
-    public void AddTiles_OnEmptySide_CreatesStack()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
+        [Test]
+        public void Clone_IsIndependentOfTheOriginal()
+        {
+            var board = TestBoards.TwoCubes();
+            var sideId = new SideId(new CellId("cube_a"), 0);
+            TestBoards.FillFace(board, sideId, P1);
 
-        board.AddTiles(sideId, P1, 3);
+            var clone = board.Clone();
+            Assert.IsTrue(clone.Validate().IsValid, clone.Validate().ToString());
 
-        Assert.AreEqual(new TileStack(P1, 3), board.GetSide(sideId).Stack);
-    }
+            clone.ClearSide(sideId);
 
-    [Test]
-    public void AddTiles_SameOwner_StacksUp()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
+            Assert.IsTrue(board.GetSide(sideId).Slots.All(s => s.Owner.Equals(P1)),
+                "Mutating the clone must not touch the original.");
+            Assert.IsTrue(clone.GetSide(sideId).Slots.All(s => s.IsNeutral));
+        }
 
-        board.AddTiles(sideId, P1, 2);
-        board.AddTiles(sideId, P1, 3);
+        [Test]
+        public void Clone_PreservesSlotPairingAndJoins()
+        {
+            var board = TestBoards.TwoCubes();
+            var clone = board.Clone();
 
-        Assert.AreEqual(new TileStack(P1, 5), board.GetSide(sideId).Stack);
-    }
+            int original = board.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount));
+            int copied = clone.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount));
 
-    [Test]
-    public void AddTiles_DifferentOwner_Throws()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
-        board.AddTiles(sideId, P1, 2);
-
-        Assert.Throws<InvalidOperationException>(() => board.AddTiles(sideId, P2, 1));
-    }
-
-    [Test]
-    public void RemoveTiles_PartialRemoval_KeepsOwner()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
-        board.AddTiles(sideId, P1, 5);
-
-        board.RemoveTiles(sideId, 2);
-
-        Assert.AreEqual(new TileStack(P1, 3), board.GetSide(sideId).Stack);
-    }
-
-    [Test]
-    public void RemoveTiles_FullRemoval_ResetsToEmpty()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
-        board.AddTiles(sideId, P1, 3);
-
-        board.RemoveTiles(sideId, 3);
-
-        Assert.IsTrue(board.GetSide(sideId).Stack.IsEmpty);
-        Assert.AreEqual(PlayerId.None, board.GetSide(sideId).Stack.Owner);
-    }
-
-    [Test]
-    public void RemoveTiles_MoreThanPresent_Throws()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
-        board.AddTiles(sideId, P1, 2);
-
-        Assert.Throws<InvalidOperationException>(() => board.RemoveTiles(sideId, 3));
-    }
-
-    [Test]
-    public void SetStack_ReplacesOwnership_ForCapture()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        var sideId = new SideId(A, 0);
-        board.AddTiles(sideId, P1, 5);
-
-        board.SetStack(sideId, new TileStack(P2, 2));
-
-        Assert.AreEqual(new TileStack(P2, 2), board.GetSide(sideId).Stack);
-    }
-
-    [Test]
-    public void SetStack_RejectsNegativeCount()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            board.SetStack(new SideId(A, 0), new TileStack(P1, -1)));
-    }
-
-    [Test]
-    public void SetStack_RejectsNoneOwnerWithCount()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        Assert.Throws<ArgumentException>(() =>
-            board.SetStack(new SideId(A, 0), new TileStack(PlayerId.None, 5)));
-    }
-
-    [Test]
-    public void SetStack_RejectsCountZeroWithOwner()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-        Assert.Throws<ArgumentException>(() =>
-            board.SetStack(new SideId(A, 0), new TileStack(P1, 0)));
-    }
-
-    [Test]
-    public void Cell_TotalTileCount_SumsAllSides()
-    {
-        var board = new BoardModel();
-        board.AddCell(A, Vec3.Zero, 3);
-
-        board.AddTiles(new SideId(A, 0), P1, 2);
-        board.AddTiles(new SideId(A, 2), P1, 4);
-
-        Assert.AreEqual(6, board.GetCell(A).TotalTileCount);
+            Assert.AreEqual(original, copied);
+            Assert.IsTrue(clone.GetSide(new SideId(new CellId("cube_a"), 2)).IsInterior);
+        }
     }
 }
