@@ -10,14 +10,14 @@ public class WaveSimulatorTests
 {
     private static readonly PlayerId P1 = TestBoards.P1;
     private static readonly PlayerId P2 = TestBoards.P2;
-    private static readonly CellId A = new("cube_a");
+    private static readonly CellId A = TestBoards.At(0, 0, 0);
 
     private static WaveConfig Config => WaveConfig.Default;
 
     [Test]
     public void QuietBoard_ProducesNoSteps()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
 
         var result = WaveSimulator.Simulate(board, Config);
 
@@ -28,7 +28,7 @@ public class WaveSimulatorTests
     [Test]
     public void FullFace_ClaimsEveryPartnerAndReleasesItself()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var partners = board.GetSide(sideId).Slots.Select(s => s.Partner).ToList();
         TestBoards.FillFace(board, sideId, P1);
@@ -46,7 +46,7 @@ public class WaveSimulatorTests
     [Test]
     public void Expansion_ConquersAnEnemySlot()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var target = board.GetSide(sideId).Slots.First().Partner;
 
@@ -61,7 +61,7 @@ public class WaveSimulatorTests
     [Test]
     public void Conquest_TakesTheDefendersWholeFace()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var target = board.GetSide(sideId).Slots.First().Partner;
 
@@ -87,7 +87,7 @@ public class WaveSimulatorTests
         // The two effects are separate: conquest repaints the defender's tiles, and the
         // arriving tile still needs a home of its own. Without that the attacker's count
         // would not grow at all when expanding onto enemy territory.
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var arrival = board.GetSide(sideId).Slots.First().Partner;
         var face = board.GetSide(arrival.Side);
@@ -112,7 +112,7 @@ public class WaveSimulatorTests
     [Test]
     public void ConquestTakesFaceDisabled_LeavesTheDefenderInPlaceAndContestsTheFace()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var arrival = board.GetSide(sideId).Slots.First().Partner;
         var face = board.GetSide(arrival.Side);
@@ -139,7 +139,7 @@ public class WaveSimulatorTests
     {
         // Regression: the arrival used to hit "already ours, do nothing" and the tile
         // simply evaporated, so expanding onto our own territory gained nothing.
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var target = board.GetSide(sideId).Slots.First().Partner;
 
@@ -158,7 +158,7 @@ public class WaveSimulatorTests
     [Test]
     public void ArrivalIsSpentWhenTheWholeFaceIsAlreadyOurs()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var target = board.GetSide(sideId).Slots.First().Partner;
 
@@ -177,7 +177,7 @@ public class WaveSimulatorTests
     [Test]
     public void EveryExpandedChangeRecordsWhereItCameFrom()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var sourceSlots = board.GetSide(sideId).Slots.Select(s => s.Id).ToList();
         TestBoards.FillFace(board, sideId, P1);
@@ -198,7 +198,7 @@ public class WaveSimulatorTests
     [Test]
     public void PartlyOwnedFace_DoesNotExpand()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var side = board.GetSide(new SideId(A, 0));
         var slots = side.Slots.ToList();
 
@@ -213,7 +213,7 @@ public class WaveSimulatorTests
     [Test]
     public void MixedOwnerFace_DoesNotExpand()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var slots = board.GetSide(new SideId(A, 0)).Slots.ToList();
 
         foreach (var slot in slots) board.SetOwner(slot.Id, P1);
@@ -229,7 +229,7 @@ public class WaveSimulatorTests
     {
         // Regression: a saturated board used to run the full MaxChainSteps releasing and
         // refilling itself, long after the game had been decided on step 1.
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         foreach (var cell in board.Cells.Values)
             foreach (var side in cell.Sides)
                 foreach (var slot in side.Slots.ToList())
@@ -249,7 +249,7 @@ public class WaveSimulatorTests
     [Test]
     public void Simulate_DoesNotReportDecidedWhileTwoPlayersRemain()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         board.SetOwner(board.GetSide(new SideId(A, 1)).Slots.First().Id, P2);
         TestBoards.FillFace(board, sideId, P1);
@@ -262,7 +262,7 @@ public class WaveSimulatorTests
     [Test]
     public void Simulate_IsBoundedByMaxChainSteps()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
 
         // Everything owned: faces keep re-filling each other, so this would loop forever.
         foreach (var cell in board.Cells.Values)
@@ -281,7 +281,7 @@ public class WaveSimulatorTests
     {
         var first = TestBoards.TwoCubes();
         var second = TestBoards.TwoCubes();
-        var sideId = new SideId(new CellId("cube_a"), 0);
+        var sideId = new SideId(TestBoards.At(0, 0, 0), 0);
 
         TestBoards.FillFace(first, sideId, P1);
         TestBoards.FillFace(second, sideId, P1);
@@ -299,7 +299,7 @@ public class WaveSimulatorTests
     public void Expansion_CrossesTheSeamBetweenCubes()
     {
         var board = TestBoards.TwoCubes();
-        var topA = new SideId(new CellId("cube_a"), 0);
+        var topA = new SideId(TestBoards.At(0, 0, 0), 0);
 
         // Cube A's top face borders cube B's top face across the seam.
         var acrossSeam = board.GetSide(topA).Slots
@@ -318,7 +318,7 @@ public class WaveSimulatorTests
     [Test]
     public void Result_ReportsChangesForEveryFlip()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         TestBoards.FillFace(board, sideId, P1);
 

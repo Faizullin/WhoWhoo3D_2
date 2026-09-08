@@ -6,6 +6,7 @@ using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.Game;
 using WhoWhoo3D.Gameplay.Wave;
 using WhoWhoo3D.Input;
+using WhoWhoo3D.MapEditor;
 using WhoWhoo3D.UI.Debugging;
 using WhoWhoo3D.UI.HUD;
 
@@ -35,6 +36,41 @@ public static class GameSceneBuilder
             PlayerCount = 3,
             BoardSize = 4,
         });
+
+    [MenuItem("Tools/WhoWhoo3D/Build MapEditor Demo Scene")]
+    public static void BuildMapEditorDemo()
+    {
+        var cubePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CubePrefabPath);
+        if (cubePrefab == null)
+        {
+            Debug.LogError($"Cube prefab not found at {CubePrefabPath}. Scene not built.");
+            return;
+        }
+
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        CreateLighting();
+        var camera = CreateCamera(6);
+        var boardView = CreateBoard(cubePrefab);
+
+        var go = new GameObject("Editor");
+        var controller = go.AddComponent<MapEditorController>();
+        go.AddComponent<MapEditorHud>();
+
+        var so = new SerializedObject(controller);
+        so.FindProperty("boardView").objectReferenceValue = boardView;
+        so.FindProperty("editorCamera").objectReferenceValue = camera;
+        so.FindProperty("mapFileName").stringValue = "custom";
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        Directory.CreateDirectory(SceneFolder);
+        string path = $"{SceneFolder}/DemoMapEditor.unity";
+        EditorSceneManager.SaveScene(scene, path);
+        AssetDatabase.Refresh();
+
+        Debug.Log($"Built {path}. Place/erase cubes on the grid, paint tiles, save to StreamingAssets/Maps.");
+        EditorUtility.DisplayDialog("WhoWhoo3D", "Built DemoMapEditor.unity", "OK");
+    }
 
     public struct SceneSpec
     {

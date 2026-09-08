@@ -15,7 +15,7 @@ public class GreedyAiPlayerTests
 {
     private static readonly PlayerId P1 = TestBoards.P1;
     private static readonly PlayerId P2 = TestBoards.P2;
-    private static readonly CellId Cube = new("cube");
+    private static readonly CellId Cube = TestBoards.At(0, 0, 0);
 
     private GreedyAiPlayer _ai;
 
@@ -24,7 +24,7 @@ public class GreedyAiPlayerTests
 
     private static BoardModel TwoPlayerBoard()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         board.SetOwner(board.GetSide(new SideId(Cube, 0)).Slots.First().Id, P1);
         board.SetOwner(board.GetSide(new SideId(Cube, 1)).Slots.First().Id, P2);
         return board;
@@ -33,7 +33,7 @@ public class GreedyAiPlayerTests
     [Test]
     public void TryChooseMove_ReturnsFalseWhenNothingIsClaimable()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
 
         // Every face holds a P1 tile, so P2 is locked out everywhere.
         foreach (var side in board.GetCell(Cube).Sides)
@@ -54,7 +54,7 @@ public class GreedyAiPlayerTests
     [Test]
     public void TryChooseMove_PrefersCompletingAFaceOverAnIdleTile()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var slots = board.GetSide(face).Slots.ToList();
 

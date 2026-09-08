@@ -12,72 +12,28 @@ public static class TestBoards
     public static readonly PlayerId P1 = new(1);
     public static readonly PlayerId P2 = new(2);
 
-    /// <summary>One cube, fully networked: 6 faces × 4 edges = 12 pairs, 24 slots.</summary>
-    public static BoardModel SingleCube(string id = "cube")
+    /// <summary>One cube, fully networked: 6 faces x 4 edges = 12 pairs, 24 slots.</summary>
+    public static BoardModel SingleCube()
     {
-        var board = new BoardModel();
-        var cell = new CellId(id);
-        board.AddCell(cell, Vec3.Zero, 6);
-        WireExposedFaces(board, cell);
-        return board;
+        // Built through BoardBuilder so the tests exercise the same wiring rule the map
+        // editor and the shipped maps use, rather than a second copy of it.
+        var builder = new BoardBuilder();
+        builder.AddCube(new BoardBuilder.Coord(0, 0, 0));
+        return builder.Build();
     }
 
     /// <summary>Two cubes side by side along +X, joined and fully networked.</summary>
-    public static BoardModel TwoCubes(string a = "cube_a", string b = "cube_b")
+    public static BoardModel TwoCubes()
     {
-        var board = new BoardModel();
-        var ca = new CellId(a);
-        var cb = new CellId(b);
-
-        board.AddCell(ca, Vec3.Zero, 6);
-        board.AddCell(cb, new Vec3(1, 0, 0), 6);
-
-        // Cube A's +X face meets cube B's -X face; both become interior.
-        board.JoinSides(new SideId(ca, 2), new SideId(cb, 3));
-
-        WireExposedFaces(board, ca, cb);
-        return board;
+        var builder = new BoardBuilder();
+        builder.AddCube(new BoardBuilder.Coord(0, 0, 0));
+        builder.AddCube(new BoardBuilder.Coord(1, 0, 0));
+        return builder.Build();
     }
 
-    private static void WireExposedFaces(BoardModel board, params CellId[] cells)
-    {
-        foreach (var cellId in cells)
-        {
-            var cell = board.GetCell(cellId);
-
-            foreach (var side in cell.ExposedSides)
-            {
-                var neighbours = CubeGeometry.EdgeNeighbours(side.LocalIndex);
-
-                for (int edge = 0; edge < neighbours.Length; edge++)
-                {
-                    var a = new SlotId(side.Id, edge);
-                    if (board.GetSlot(a) != null) continue;
-
-                    int g = neighbours[edge];
-                    var neighbourSide = cell.GetSide(g);
-
-                    SlotId b;
-                    if (!neighbourSide.IsInterior)
-                    {
-                        // Around this cube's own corner.
-                        b = new SlotId(neighbourSide.Id, CubeGeometry.EdgeIndexOf(g, side.LocalIndex));
-                    }
-                    else
-                    {
-                        // Across the seam onto the neighbour cube's same-facing face.
-                        var other = neighbourSide.Link.Value.Other.Cell;
-                        int backEdge = CubeGeometry.EdgeIndexOf(
-                            side.LocalIndex, CubeGeometry.OppositeFace(g));
-                        b = new SlotId(new SideId(other, side.LocalIndex), backEdge);
-                    }
-
-                    if (board.GetSlot(b) != null) continue;
-                    board.AddSlotPair(a, b);
-                }
-            }
-        }
-    }
+    /// <summary>Cell id of a cube at a grid position, for tests that need to name one.</summary>
+    public static CellId At(int x, int y, int z) =>
+        BoardBuilder.IdFor(new BoardBuilder.Coord(x, y, z));
 
     /// <summary>Claims every slot on a face for a player — the expansion trigger.</summary>
     public static void FillFace(BoardModel board, SideId sideId, PlayerId owner)

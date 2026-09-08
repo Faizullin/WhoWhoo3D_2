@@ -9,12 +9,12 @@ public class BoardModelTests
 {
     private static readonly PlayerId P1 = TestBoards.P1;
     private static readonly PlayerId P2 = TestBoards.P2;
-    private static readonly CellId A = new("cube_a");
+    private static readonly CellId A = TestBoards.At(0, 0, 0);
 
     [Test]
     public void SingleCube_WiresTwelveReciprocalPairs()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
 
         int slots = board.GetCell(A).Sides.Sum(s => s.SlotCount);
         Assert.AreEqual(24, slots, "6 faces x 4 edges = 24 slot halves.");
@@ -26,7 +26,7 @@ public class BoardModelTests
     {
         var board = TestBoards.TwoCubes();
 
-        var joined = board.GetSide(new SideId(new CellId("cube_a"), 2));
+        var joined = board.GetSide(new SideId(TestBoards.At(0, 0, 0), 2));
         Assert.IsTrue(joined.IsInterior);
         Assert.AreEqual(0, joined.SlotCount, "An interior face must hold no slots.");
         Assert.IsTrue(board.Validate().IsValid, board.Validate().ToString());
@@ -44,8 +44,8 @@ public class BoardModelTests
     [Test]
     public void JoinSides_RejectsAFaceThatAlreadyHoldsSlots()
     {
-        var board = TestBoards.SingleCube("cube_a");
-        var other = new CellId("cube_b");
+        var board = TestBoards.SingleCube();
+        var other = TestBoards.At(1, 0, 0);
         board.AddCell(other, new Vec3(1, 0, 0), 6);
 
         // Face 2 was wired with slots by SingleCube, so it cannot become interior.
@@ -71,7 +71,7 @@ public class BoardModelTests
     [Test]
     public void Validate_RejectsAContestedFace()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var side = board.GetSide(new SideId(A, 0));
         var slots = side.Slots.ToList();
 
@@ -86,7 +86,7 @@ public class BoardModelTests
     [Test]
     public void SetOwner_AndRelease()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var slot = board.GetSide(new SideId(A, 0)).Slots.First();
 
         board.SetOwner(slot.Id, P1);
@@ -100,7 +100,7 @@ public class BoardModelTests
     [Test]
     public void IsFull_OnlyWhenEverySlotIsOneOwner()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         var side = board.GetSide(sideId);
         var slots = side.Slots.ToList();
@@ -139,7 +139,7 @@ public class BoardModelTests
     [Test]
     public void ClearSide_ReleasesEverySlotToWhite()
     {
-        var board = TestBoards.SingleCube("cube_a");
+        var board = TestBoards.SingleCube();
         var sideId = new SideId(A, 0);
         TestBoards.FillFace(board, sideId, P1);
 
@@ -152,7 +152,7 @@ public class BoardModelTests
     public void Clone_IsIndependentOfTheOriginal()
     {
         var board = TestBoards.TwoCubes();
-        var sideId = new SideId(new CellId("cube_a"), 0);
+        var sideId = new SideId(TestBoards.At(0, 0, 0), 0);
         TestBoards.FillFace(board, sideId, P1);
 
         var clone = board.Clone();
@@ -175,7 +175,7 @@ public class BoardModelTests
         int copied = clone.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount));
 
         Assert.AreEqual(original, copied);
-        Assert.IsTrue(clone.GetSide(new SideId(new CellId("cube_a"), 2)).IsInterior);
+        Assert.IsTrue(clone.GetSide(new SideId(TestBoards.At(0, 0, 0), 2)).IsInterior);
     }
 }
 

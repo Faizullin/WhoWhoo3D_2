@@ -531,34 +531,47 @@ Two rules this depends on:
 
 ---
 
-## Stage 10 — Map Editor (4-5 days)
+## Stage 10 — Map Editor (mostly done)
 
-**Goal:** author maps without hand-writing JSON.
+`Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene` generates `DemoMapEditor.unity`.
 
-This has moved up the roadmap. Schema v2 slot pairings are not writable by hand — the only
-existing map was produced by a throwaway Python script. Without an editor the game has
-exactly one board.
+### 10.1 The core: `BoardBuilder`
 
-### 10.1 Editor scene
+- [x] `Gameplay/Board/BoardBuilder.cs` — the **canonical** surface-wiring rule, and the one
+      place it now lives. The editor, the tests and any generator all go through it.
+- [x] Cube placement on an integer grid; touching cubes auto-join and bury their facing sides.
+- [x] `AutoWire` walks the exposed surface and pairs slots across every shared edge. A pair
+      needs **both** ends to pass the face filter, which is what keeps a filtered board free
+      of lone slots.
+- [x] `AllFaces` / `TopFaceOnly` filters — the flat slab is just the filtered case.
+- [x] `FromBoard` reopens a saved map, remapping ownership onto rebuilt ids.
+- [x] 10 unit tests, plus a parity test pinning it to the shipped `demo4x4.json`.
 
-- [ ] Place and delete cubes on a grid
-- [ ] Auto-join touching faces (both become interior)
-- [ ] Auto-wire the tile network by walking the exposed surface — the rule is in
-      [MAP_SCHEMA.md](MAP_SCHEMA.md) §"Finding a slot's partner"
-- [ ] Toggle individual slot pairs for sparse maps (always both halves, never one)
-- [ ] Paint starting ownership
+**It rebuilds rather than edits.** Placing a cube buries its neighbours' facing sides, which
+destroys every slot on them and changes what surrounding slots pair with. Incremental
+mutation of that is a bug farm, so the builder keeps only cube positions and slot ownership
+and recomputes the topology on every `Build()`. Ownership of a slot that no longer exists is
+simply dropped. No `UnityEngine` reference, so all of it is unit-tested.
 
-### 10.2 Save / load
+### 10.2 Editing
 
-- [ ] Write via `MapSerializer.Serialize`, read via `Deserialize`
-- [ ] Run `BoardModel.Validate()` before saving and refuse to write an invalid map
-- [ ] Save into `Assets/StreamingAssets/Maps/`
+- [x] `MapEditor/MapEditorController.cs` — Place / Erase / Paint tools, same shape as
+      `GameController`: a MonoBehaviour holding pure logic and driving `BoardView`.
+- [x] Clicks project onto a mathematical plane rather than a collider, so an **empty** grid
+      square is clickable — there is nothing there to hit.
+- [x] `MapEditor/MapEditorHud.cs` — IMGUI panel, matching the other two.
+- [x] Save refuses to write an invalid map, and the button is disabled rather than allowed
+      to fail. A map that fails validation cannot be loaded back.
+- [ ] Multi-layer editing (`editLayer` exists but has no UI).
+- [ ] Toggling individual slot pairs for sparse maps.
+- [ ] Undo — `GameHistory` is the obvious model to reuse.
 
 ### 10.3 Pitfalls
 
-- A slot with no partner is invalid. Create and delete pairs, never halves.
-- An interior face may not hold slots. Joining two cubes must strip any slots first.
-- Editor geometry must match `CubeGeometry.cs` exactly or tiles render on the wrong edges.
+- A slot with no partner is invalid. Create and delete **pairs**, never halves.
+- An interior face may not hold slots. Joining two cubes strips them.
+- Editor geometry must match `CubeGeometry` exactly, which is why both go through
+  `BoardBuilder` rather than reimplementing the walk.
 
 ---
 
@@ -584,7 +597,10 @@ the slab has three natural tiers — **4 corner faces expand at 2 tiles, 8 edge 
 4 interior faces at 4** — which is where the chain behaviour actually becomes visible.
 48 slots across 24 paired edges.
 
-The scene is generated rather than hand-wired; see [TODO.md](TODO.md) §4 for why, and for the
+`Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene` generates `DemoMapEditor.unity` the same
+way — a demo for authoring maps, not a shipping scene.
+
+Both are generated rather than hand-wired; see [TODO.md](TODO.md) §4 for why, and for the
 `SingleplayerGame` / `MultiplayerGame` scenes that should come through the same builder.
 **Leave `Game.unity` alone** — it is the working two-cube reference.
 

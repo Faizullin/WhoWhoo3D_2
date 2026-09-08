@@ -100,6 +100,7 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 |---|---|
 | `Game.unity` | The original hand-wired scene. **Leave it alone** — it is the working reference. |
 | `Demo4x4.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build Demo4x4 Scene`. 16 cubes, 3 players, top faces only. |
+| `DemoMapEditor.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene`. Authoring demo, not a shipping scene. |
 | `SingleplayerGame.unity` | **To do.** Same builder, plus map selection and player-count setup. |
 | `MultiplayerGame.unity` | **To do.** Same builder again; only the session layer differs. |
 

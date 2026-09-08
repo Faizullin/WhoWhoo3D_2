@@ -23,7 +23,7 @@ public class MapSerializerTests
     public void RoundTrip_PreservesTopologyAndOwners()
     {
         var board = TestBoards.TwoCubes();
-        TestBoards.FillFace(board, new SideId(new CellId("cube_a"), 0), TestBoards.P1);
+        TestBoards.FillFace(board, new SideId(TestBoards.At(0, 0, 0), 0), TestBoards.P1);
 
         var restored = MapSerializer.Deserialize(MapSerializer.Serialize(board, Meta));
 
@@ -31,8 +31,8 @@ public class MapSerializerTests
         Assert.AreEqual(
             board.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount)),
             restored.Cells.Values.Sum(c => c.Sides.Sum(s => s.SlotCount)));
-        Assert.AreEqual(4, restored.GetSide(new SideId(new CellId("cube_a"), 0)).OwnedCount(TestBoards.P1));
-        Assert.IsTrue(restored.GetSide(new SideId(new CellId("cube_a"), 2)).IsInterior);
+        Assert.AreEqual(4, restored.GetSide(new SideId(TestBoards.At(0, 0, 0), 0)).OwnedCount(TestBoards.P1));
+        Assert.IsTrue(restored.GetSide(new SideId(TestBoards.At(0, 0, 0), 2)).IsInterior);
     }
 
     [Test]

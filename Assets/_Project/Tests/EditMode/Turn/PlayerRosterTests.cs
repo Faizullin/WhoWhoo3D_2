@@ -17,7 +17,7 @@ public class PlayerRosterTests
     public void PlayerState_ScoreCountsOwnedTiles()
     {
         var board = TestBoards.SingleCube();
-        var side = board.GetSide(new SideId(new CellId("cube"), 0));
+        var side = board.GetSide(new SideId(TestBoards.At(0, 0, 0), 0));
         var slots = side.Slots.ToList();
 
         board.SetOwner(slots[0].Id, P1);
@@ -83,7 +83,7 @@ public class PlayerRosterTests
     public void UpdateAliveStatus_EliminatesAPlayerWhoHeldTilesAndLostThemAll()
     {
         var board = TestBoards.SingleCube();
-        var slot = board.GetSide(new SideId(new CellId("cube"), 0)).Slots.First().Id;
+        var slot = board.GetSide(new SideId(TestBoards.At(0, 0, 0), 0)).Slots.First().Id;
 
         var p1 = new PlayerState(P1);
         var p2 = new PlayerState(P2);

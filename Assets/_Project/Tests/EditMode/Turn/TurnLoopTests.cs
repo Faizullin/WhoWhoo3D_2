@@ -12,7 +12,7 @@ public class TurnLoopTests
 {
     private static readonly PlayerId P1 = TestBoards.P1;
     private static readonly PlayerId P2 = TestBoards.P2;
-    private static readonly CellId Cube = new("cube");
+    private static readonly CellId Cube = TestBoards.At(0, 0, 0);
 
     private GameObject _holder;
     private GameController _game;
@@ -36,7 +36,7 @@ public class TurnLoopTests
     /// <summary>One cube; P1 holds a tile on face 0, P2 holds one on face 1.</summary>
     private static BoardModel TwoPlayerBoard()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         board.SetOwner(board.GetSide(new SideId(Cube, 0)).Slots.First().Id, P1);
         board.SetOwner(board.GetSide(new SideId(Cube, 1)).Slots.First().Id, P2);
         return board;
@@ -119,7 +119,7 @@ public class TurnLoopTests
     [Test]
     public void FillingAFaceTriggersExpansionDuringTheWavePhase()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var slots = board.GetSide(face).Slots.ToList();
 
@@ -144,7 +144,7 @@ public class TurnLoopTests
         // The shipped map seeds nothing. Players come from the configured count, and
         // nobody is eliminated for not having claimed a tile yet.
         _game.ConfigurePlayers(2);
-        _game.InitializeWithBoard(TestBoards.SingleCube("cube"));
+        _game.InitializeWithBoard(TestBoards.SingleCube());
 
         Assert.IsFalse(_game.IsGameOver, "An empty opening board is a start, not a finish.");
         Assert.AreEqual(2, _game.Roster.Players.Count);
@@ -156,7 +156,7 @@ public class TurnLoopTests
     public void PlayerCountComesFromConfigurationNotFromTheMap()
     {
         _game.ConfigurePlayers(4);
-        _game.InitializeWithBoard(TestBoards.SingleCube("cube"));
+        _game.InitializeWithBoard(TestBoards.SingleCube());
 
         Assert.AreEqual(4, _game.Roster.Players.Count);
     }
@@ -165,7 +165,7 @@ public class TurnLoopTests
     public void AnyPlayerMayClaimOnAnAllWhiteFace()
     {
         _game.ConfigurePlayers(2);
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         _game.InitializeWithBoard(board);
 
         var slot = board.GetSide(new SideId(Cube, 0)).Slots.First().Id;
@@ -179,7 +179,7 @@ public class TurnLoopTests
         // If every player is skipped for want of a legal move, the phase machine would
         // otherwise cycle until its transition cap tripped and halted the game with an
         // error. A full round of skips ends it on tiles held instead.
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var faceA = board.GetSide(new SideId(Cube, 0)).Slots.ToList();
         board.SetOwner(faceA[0].Id, P1);
         board.SetOwner(faceA[1].Id, P1);
@@ -202,7 +202,7 @@ public class TurnLoopTests
     [Test]
     public void LeadingPlayerIsNoneOnATie()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         board.SetOwner(board.GetSide(new SideId(Cube, 0)).Slots.First().Id, P1);
         board.SetOwner(board.GetSide(new SideId(Cube, 1)).Slots.First().Id, P2);
 
@@ -240,7 +240,7 @@ public class TurnLoopTests
     [Test]
     public void DisplayIsOutOnlyAfterAPlayerHasHeldTiles()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         _game.ConfigurePlayers(2);
         _game.InitializeWithBoard(board);
 

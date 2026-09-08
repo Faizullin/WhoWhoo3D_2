@@ -42,6 +42,21 @@ public static class CubeGeometry
 
     public static int OppositeFace(int face) => face % 2 == 0 ? face + 1 : face - 1;
 
+    /// <summary>
+    /// Grid step to the cell on the other side of a face. Integer, and free of UnityEngine
+    /// types, so map construction can use it without pulling the engine in.
+    /// </summary>
+    public static (int X, int Y, int Z) FaceStep(int face) => face switch
+    {
+        0 => (0, 1, 0),
+        1 => (0, -1, 0),
+        2 => (1, 0, 0),
+        3 => (-1, 0, 0),
+        4 => (0, 0, 1),
+        5 => (0, 0, -1),
+        _ => throw new System.ArgumentOutOfRangeException(nameof(face), $"No such cube face: {face}."),
+    };
+
     /// <summary>The four face indices bordering this face, in ascending order.</summary>
     public static int[] EdgeNeighbours(int face)
     {

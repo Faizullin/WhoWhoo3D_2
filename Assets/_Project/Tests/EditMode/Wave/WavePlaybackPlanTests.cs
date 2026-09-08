@@ -11,7 +11,7 @@ public class WavePlaybackPlanTests
 {
     private static readonly PlayerId P1 = TestBoards.P1;
     private static readonly PlayerId P2 = TestBoards.P2;
-    private static readonly CellId Cube = new("cube");
+    private static readonly CellId Cube = TestBoards.At(0, 0, 0);
 
     private static WavePlaybackPlan PlanFor(BoardModel board) =>
         WavePlaybackPlan.Build(WaveSimulator.Simulate(board, WaveConfig.Default));
@@ -19,7 +19,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void Build_ProducesOneFramePerChainStep()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         TestBoards.FillFace(board, new SideId(Cube, 0), P1);
 
         var result = WaveSimulator.Simulate(board, WaveConfig.Default);
@@ -32,7 +32,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void InitialState_CapturesPreWaveOwnersNotPostWaveOwners()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var slots = board.GetSide(face).Slots.Select(s => s.Id).ToList();
         TestBoards.FillFace(board, face, P1);
@@ -49,7 +49,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void Build_EmitsAFlightIntoEverySlotThatWasClaimed()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var partners = board.GetSide(face).Slots.Select(s => s.Partner).ToList();
         TestBoards.FillFace(board, face, P1);
@@ -66,7 +66,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void Build_FlightsOriginateFromThePartnerSlot()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         TestBoards.FillFace(board, face, P1);
 
@@ -80,7 +80,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void Build_ReleasedTilesProduceNoFlight()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         TestBoards.FillFace(board, face, P1);
 
@@ -95,7 +95,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void Build_ReturnsAnEmptyPlanWhenNothingHappened()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
 
         var plan = PlanFor(board);
 
@@ -109,7 +109,7 @@ public class WavePlaybackPlanTests
         // Regression: conquest takes the defender's whole face, so those slots change
         // hands without crossing an edge. Inferring their origin from their own partner
         // spawned spheres on unrelated parts of the board and flew them across.
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var arrival = board.GetSide(face).Slots.First().Partner;
         var invaded = board.GetSide(arrival.Side);
@@ -134,7 +134,7 @@ public class WavePlaybackPlanTests
     public void EveryFlightStartsOnTheFaceThatExpanded()
     {
         var board = TestBoards.TwoCubes();
-        var face = new SideId(new CellId("cube_a"), 0);
+        var face = new SideId(TestBoards.At(0, 0, 0), 0);
         var sourceSlots = board.GetSide(face).Slots.Select(s => s.Id).ToHashSet();
         TestBoards.FillFace(board, face, P1);
 
@@ -154,7 +154,7 @@ public class WavePlaybackPlanTests
     [Test]
     public void Build_CoversConquestOfAnEnemyTile()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var arrival = board.GetSide(face).Slots.First().Partner;
         board.SetOwner(arrival, P2);

@@ -13,7 +13,7 @@ public class GameHistoryTests
 {
     private static readonly PlayerId P1 = TestBoards.P1;
     private static readonly PlayerId P2 = TestBoards.P2;
-    private static readonly CellId Cube = new("cube");
+    private static readonly CellId Cube = TestBoards.At(0, 0, 0);
 
     private static HistoryEntry Entry(SlotId slot, PlayerId before, PlayerId after) =>
         new(HistoryKind.Claim, 1, after, "test",
@@ -36,7 +36,7 @@ public class GameHistoryTests
     [Test]
     public void RecordAdvancesTheCursorAndStaysAtThePresent()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var history = new GameHistory();
 
         history.Record(Entry(AnySlot(board), PlayerId.None, P1));
@@ -49,7 +49,7 @@ public class GameHistoryTests
     [Test]
     public void SteppingBackAndForwardReturnsTheSameEntry()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var history = new GameHistory();
         var slot = AnySlot(board);
         history.Record(Entry(slot, PlayerId.None, P1));
@@ -76,7 +76,7 @@ public class GameHistoryTests
     [Test]
     public void RecordingWhileScrubbedDropsTheAbandonedFuture()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var history = new GameHistory();
         var a = AnySlot(board, 0);
         var b = AnySlot(board, 1);
@@ -97,7 +97,7 @@ public class GameHistoryTests
     {
         // The property the whole feature rests on: Before/After makes history exactly
         // reversible, with no inverse-operation logic to get wrong.
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var holder = new GameObject("g");
         try
         {
@@ -137,7 +137,7 @@ public class GameHistoryTests
     [Test]
     public void ClaimsAndWaveStepsAreRecordedSeparately()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var face = new SideId(Cube, 0);
         var slots = board.GetSide(face).Slots.ToList();
         for (int i = 0; i < slots.Count - 1; i++)
@@ -164,7 +164,7 @@ public class GameHistoryTests
     [Test]
     public void RevertToCursorRewindsTheLiveBoardAndDropsTheFuture()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var holder = new GameObject("g");
         try
         {
@@ -196,7 +196,7 @@ public class GameHistoryTests
     [Test]
     public void ReviewingBlocksPlayUntilYouReturnToThePresent()
     {
-        var board = TestBoards.SingleCube("cube");
+        var board = TestBoards.SingleCube();
         var holder = new GameObject("g");
         try
         {
