@@ -18,8 +18,7 @@ The September 2026 notes below record the earlier architecture and test inventor
   the edge, and the face itself is released back to white.
 - Last player holding tiles wins.
 
-**Current goal: a simple local player-versus-player game.** The AI opponent and online
-multiplayer are built or designed but deliberately deferred — see [TODO.md](TODO.md).
+**Current goal: a simple local player-versus-player game.** See the [roadmap](ARCHITECTURE.md) for the current multiplayer milestones.
 
 ---
 
@@ -43,17 +42,16 @@ WhoWhoo3D_2/
 │       │   │   ├── Player/      ← PlayerState, PlayerRoster
 │       │   │   ├── Turn/        ← IGamePhase + 4 phases
 │       │   │   ├── Wave/        ← WavePlaybackPlan (pure), WaveAnimator
-│       │   │   ├── Ai/          ← GreedyAiPlayer (deferred)
 │       │   │   ├── History/     ← GameHistory, HistoryEntry (pure)
 │       │   │   └── Game/        ← GameController
 │       │   ├── Input/           ← PlayerInputHandler
 │       │   └── UI/              ← HUD/ScoreboardView, Debug/TimelineView (IMGUI)
-│       ├── Tests/EditMode/      ← NUnit: Board, Wave, Maps, Turn, Ai, Support
+│       ├── Tests/EditMode/      ← NUnit: Board, Wave, Maps, Turn, Support
 │       ├── Editor/             ← GameSceneBuilder (generates scenes)
 │       ├── Prefabs/Board/Cube.prefab
 │       └── Scenes/              ← Bootstrap.unity (empty shell), Game.unity (2-cube),
 │                                  Demo4x4.unity (16 cubes, 3 players — generated)
-├── TruthPack/                   ← DOES NOT COMPILE — see TODO.md §4
+├── TruthPack/                   ← DOES NOT COMPILE — see TODO.md §5
 └── docs/
 ```
 
@@ -81,13 +79,10 @@ Edge indexing, the partner-resolution rule, and the wave rules are specified in
 
 ## Test coverage
 
-62 Edit Mode tests. **They have never been executed in the Unity Test Runner** — they
-compile against the Unity reference assemblies, and the Domain was additionally run
-headlessly against `sample.json`, but a real test run is still outstanding.
+Selected suites from the September handoff are listed below. The [gameplay report](reports/README.md) records a later run in Unity.
 
 | Suite | Tests |
 |---|---|
-| `Ai/GreedyAiPlayerTests.cs` | 8 |
 | `Board/BoardModelTests.cs` | 12 |
 | `Maps/MapSerializerTests.cs` | 11 |
 | `Turn/PlayerRosterTests.cs` | 5 |
@@ -110,7 +105,7 @@ headlessly against `sample.json`, but a real test run is still outstanding.
 | **9** | **Make the game legible — highlighting, HUD, victory, player setup** | **Next** |
 | 10 | Map editor | Not started |
 | 11 | Polish & ship local | Not started |
-| — | AI opponent, online multiplayer, abilities | **Deferred → [TODO.md](TODO.md)** |
+| — | Online multiplayer, abilities | **Deferred → [TODO.md](TODO.md)** |
 
 ---
 
@@ -137,7 +132,7 @@ Consequences still visible in the repo:
 - **No `git add` / `git commit`** — the user stages and commits themselves.
 - **Unity 6 LTS** (6000.4.5f1), URP, New Input System.
 - **`noEngineReferences: true`** on the Domain assembly — keep domain code free of Unity API.
-- **Current goal is the local player-vs-player game.** AI, networking and abilities are
+- **Current goal is the local player-vs-player game.** Networking and abilities are
   deferred in [TODO.md](TODO.md); don't start them while a roadmap stage is open.
 - **Tiles always exist in pairs.** Create and delete slot pairs, never halves — a lone slot
   fails `Validate()`.

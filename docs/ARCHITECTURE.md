@@ -2,7 +2,7 @@
 
 > Design reference for the project at `WhoWhoo3D_2/`. Companion docs:
 > - [BUILD_GUIDE.md](BUILD_GUIDE.md) — concrete stage-by-stage build manual
-> - [TODO.md](TODO.md) — deferred work (AI, networking, abilities)
+> - [TODO.md](TODO.md) — deferred work (networking and abilities)
 > - [WAVE_SPEC.md](WAVE_SPEC.md) — gameplay rules
 > - [MAP_SCHEMA.md](MAP_SCHEMA.md) — data contract
 
@@ -32,7 +32,7 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 | Module | Current responsibility |
 | --- | --- |
 | Domain | Board topology (`Cell`, `Side`, `Slot`), map serialization, deterministic wave simulation, and the `Match/ClaimSlotCommand` value type. The assembly sets `noEngineReferences`. |
-| Gameplay | Match setup and orchestration in `Game/`, roster in `Player/`, phases in `Turn/`, and computer move selection in `Ai/`. Board views, wave playback, map loading and history also live here. |
+| Gameplay | Match setup and orchestration in `Game/`, roster in `Player/` and phases in `Turn/`. Board views, wave playback, map loading and history also live here. |
 | Input | Resolves a pointer to a slot and submits a local action to the controller. |
 | UI | Match setup, scoreboard, results and debug timeline. |
 | MapEditor | Map authoring and its HUD. The editor builds boards using the same `BoardBuilder` as the game tests. |
@@ -44,13 +44,13 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 - Group files by feature and match their namespaces to the module and folder. Use the existing `CellId`, `SideId`, `SlotId` and `PlayerId` types at boundaries.
 - Use explicit imports and one public type per file. Pure C# types use file-scoped namespaces. Use block-scoped namespaces for scene-attached MonoBehaviours so Unity resolves their script assets consistently.
 - Keep a script's `.meta` file when moving it. Apply scene wiring changes to the saved scene and `GameSceneBuilder` together.
-- Keep domain logic free of Unity types. Use direct calls for ordered gameplay transitions and deterministic iteration for wave and AI results.
+- Keep domain logic free of Unity types. Use direct calls for ordered gameplay transitions and deterministic iteration for wave resolution.
 
 ## Match setup and claims
 
-`MatchSetup` stores the map and an immutable ordered list of seat controllers. Seat one belongs to P1. `StartMatch(setup)` creates the board and roster. Restart reloads the map using the same setup. Existing serialized player-count and AI fields supply defaults for scenes and the local setup screen.
+`MatchSetup` stores the map and an immutable ordered list of seat controllers. Seat one belongs to P1. `StartMatch(setup)` creates the board and roster. Restart reloads the map using the same setup. Serialized scene settings supply defaults for scenes and the local setup screen.
 
-Pointer input checks that the active seat is human. Both the pointer handler and the computer player ultimately call `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number and slot. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
+Pointer input checks the active seat before calling `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number and slot. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
 
 Commands currently belong to a single running match on the Unity main thread. A future network adapter will bind each connection to a seat and match instance before forwarding a command.
 
@@ -146,22 +146,11 @@ Rule of thumb: if subscriber order or completion matters, use a direct call. If 
 
 `GameController` owns the phase machine and accepts match commands for all seats.
 
-### 6. AI opponent
+### 6. Next milestones
 
-`GreedyAiPlayer` is built and tested but **off by default**: the current goal is a local
-player-versus-player game. See [TODO.md](TODO.md) §1.
+The Edit Mode replay test runs the demo on two independent match instances. It compares ordered changes, ownership, roster and winner after each accepted claim and retries every delivery.
 
-Two properties are worth preserving whenever it is picked back up:
-
-- **It shares `BoardActions` with the human path**, so a move it simulates is exactly the
-  move `GameController` executes.
-- **It has no `UnityEngine` reference**, so move selection is unit-tested rather than
-  watched.
-
-### 7. Next milestones
-
-1. Add Solo vs AI to match setup and construct a `MatchSetup` with one local human and the chosen computer opponents. Keep hot-seat available in the same scene.
-2. Run an in-memory host and client. Make authoritative turn advancement independent of animation timing, deliver ordered results and compare both boards and rosters after each claim.
-3. Add transport-backed host/join, seat assignment and reconnect from a host snapshot. The host validates commands using the same claim rules.
+1. Bind each connection to a seat, deliver ordered host results and allow presentation to lag behind the authoritative turn.
+2. Add transport-backed host/join, seat assignment and reconnect from a host snapshot. The host validates commands using the same claim rules.
 
 The latest recorded hot-seat run and its verification results are in the [gameplay report](reports/README.md).

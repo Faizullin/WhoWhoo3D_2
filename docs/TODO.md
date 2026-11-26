@@ -1,82 +1,22 @@
-# TODO — Deferred Work
+# Gameplay backlog
 
-> Everything here is **out of scope for the current goal**. The primary goal is a simple
-> local, player-versus-player cube game: click a tile, faces expand, last player standing
-> wins. Nothing in this file is needed for that.
->
-> Items are here because they are *deferred*, not because they are unwanted. Some are
-> already built — see the status column.
->
-> ## Ordering rule
->
-> **Nothing in this file starts until the singleplayer core is finished and tested.**
->
-> AI, multiplayer and abilities are all *extensions* of the core loop. Building any of them
-> against a core that is still changing means designing the extension around rules that will
-> move — and the seams end up in the wrong places. The slot-model rewrite already proved the
-> cost: it invalidated the AI's scoring, the map schema, every view, and roughly sixty tests
-> in one go. That is cheap while the surface is small and expensive once three subsystems
-> hang off it.
->
-> Core first means: the game is playable start to finish, the rules are settled, the UI
-> communicates what is happening, and the Edit Mode suite passes in Unity. Then extend.
+The [architecture milestones](ARCHITECTURE.md) describe the order of implementation. The [gameplay report](reports/README.md) covers the local match.
 
----
+## 1. Networking / Online Multiplayer
 
-## 1. AI Opponent
-
-**Status: BUILT, DISABLED BY DEFAULT.** `GameController.enableAi` ships `false`, so every
-player is human. The code is tested and works; it is simply not the current focus.
-
-| Piece | Where | State |
-|---|---|---|
-| `GreedyAiPlayer` | `Runtime/Gameplay/Ai/` | One-ply search over `board.Clone()`, scores `(own gain) − (opponents' gain)`, ties to lowest slot id. Deterministic. |
-| `PlayerState.IsAi` | `Runtime/Gameplay/Player/` | Flag the roster reads. |
-| `GameController.ConfigureAi(...)` | `Runtime/Gameplay/Game/` | Runtime switch; used by tests. |
-| `PlayerTurnPhase` AI branch | `Runtime/Gameplay/Turn/` | Plays itself after `aiThinkDelay` seconds. |
-| `GreedyAiPlayerTests` | `Tests/EditMode/Ai/` | 8 tests. |
-
-**To re-enable:** tick `Enable Ai` on the `Game` object and set `Human Player Id`.
-
-### Future AI work (none of it started)
-
-- [ ] Look ahead more than one ply — the current AI cannot see a chain reaction coming.
-- [ ] Difficulty levels. One-ply greedy is the "easy" tier.
-- [ ] Weight *reach* as well as tile count. Expansion trades tiles for footholds, so raw
-      score is a poor proxy for position.
-- [ ] Personality / opening preferences so repeat games differ.
-- [ ] Move-explanation debug overlay (`GreedyAiPlayer.EvaluateAll` already returns the
-      scored list needed for it).
-
----
-
-## 2. Networking / Online Multiplayer
-
-**Status: NOT STARTED. Deferred until the local game ships.**
-
-The design is already settled and should not be revisited before then:
-
-- **Command-based, not state-sync.** Clients send intents (`ClaimSlotCommand`,
-  `EndTurnCommand`); the host runs the authoritative `GameController`, validates, mutates,
-  and publishes result events.
-- **The simulator is deterministic** — `WaveSimulator` orders faces by `(cellId, sideIndex)`
-  and has no randomness — so clients can re-apply the same transitions without desync.
-  Keep it that way; a single unordered iteration would break this silently.
+The local controller validates turn-addressed claims. An Edit Mode regression now replays a complete demo match on two independent boards and checks the outcome after every delivery. The next step is a host session that binds the sender to a seat and publishes each accepted turn in order.
 
 ### Work items
 
 - [ ] `WhoWhoo3D.Networking` assembly (folder exists, no sources).
-- [ ] Command types + validation on the host.
+- [ ] Bind the sender to its assigned seat before forwarding a claim to the host controller.
 - [ ] Result-event replication and client-side re-application.
 - [ ] Lobby, matchmaking, reconnect.
-- [ ] Determinism regression test: run the same command sequence on two boards, assert
-      identical `WaveResult` change lists.
-
-**Do not touch Netcode until the local game is shipped.**
+- [x] Replay accepted claims on independent boards and compare ordered wave changes, ownership, elimination, turn and winner after each claim.
 
 ---
 
-## 3. Abilities System
+## 2. Abilities System
 
 **Status: NOT STARTED.** Scoped out of "basic game logic".
 
@@ -88,7 +28,7 @@ The design is already settled and should not be revisited before then:
 
 ---
 
-## 4. Scene Architecture
+## 3. Scene Architecture
 
 **Status: PARTIAL.** `Demo4x4` is built (see below); the real scenes are not.
 
@@ -106,14 +46,14 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 
 - [ ] Extend `SceneSpec` with map selection and a start screen rather than fixed values.
 - [ ] `SingleplayerGame` scene once Stage 9 (HUD, legibility, victory, restart) is done.
-- [ ] `MultiplayerGame` scene — after §2, not before.
+- [ ] `MultiplayerGame` scene — after the host/join milestone.
 - [ ] Retire `Game.unity` once `SingleplayerGame` supersedes it.
 
 ---
 
-## 5. UI and Mesh Rendering Design
+## 4. UI and Mesh Rendering Design
 
-**Status: NOT STARTED. Blocks nothing, but should land before §1–§3.**
+**Status: Partial.**
 
 The current visuals are functional placeholders: primitive cubes, code-spawned slab tiles,
 and two IMGUI panels. That is enough to debug rules and no more. Interaction is the weaker
@@ -135,14 +75,11 @@ half — you cannot tell what is clickable without reading WAVE_SPEC.
 - [ ] Turn hand-off screen for hot-seat play, so players know the turn changed.
 - [ ] Wave playback controls surfaced properly rather than as a debug bar.
 
-**Why before §1–§3:** an AI is only debuggable if you can see what it did, multiplayer needs
-the turn hand-off and state readability that do not exist yet, and abilities need a target
-selection UI. Each of the three would otherwise ship its own ad-hoc UI, and they would not
-match.
+Turn handoff and board readability also support online play and future target selection.
 
 ---
 
-## 6. Deferred Infrastructure
+## 5. Deferred Infrastructure
 
 - [ ] **Retire or fix TruthPack.** It currently does **not compile** — all 8 source files
       still use `TileStack` / `SideStateChange`, deleted in the slot-model rewrite. Nothing
@@ -169,7 +106,7 @@ match.
 
 ---
 
-## 7. Ideas Not Committed To
+## 6. Ideas Not Committed To
 
 - Larger clusters and irregular shapes (the surface walk already supports any cube cluster).
 - Sparse tile networks — maps where not every edge carries a tile pair. Supported by the

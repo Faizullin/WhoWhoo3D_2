@@ -17,6 +17,6 @@ Open the project in Unity **6000.4.5f1** and play `Assets/_Project/Scenes/Demo4x
 | Local match | Map and player setup, click-to-claim, animated waves, scores, elimination, result and restart |
 | Verification | Unity Edit Mode rule tests and a Play Mode match driven by mouse events |
 | Map editor | Separate authoring demo with place, erase, paint, save and load |
-| Next implementation | Add Solo vs AI to the setup screen using the shared seat configuration and move validation. See the [architecture](docs/ARCHITECTURE.md). |
+| Next implementation | Bind seats to a host session and deliver ordered turn results to clients. See the [architecture](docs/ARCHITECTURE.md). |
 
 The capture command and its requirements are in the [gameplay report](docs/reports/README.md). Board formats and expansion rules are in the [map schema](docs/MAP_SCHEMA.md) and [wave specification](docs/WAVE_SPEC.md).

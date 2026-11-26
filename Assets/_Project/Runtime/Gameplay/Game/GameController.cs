@@ -50,9 +50,7 @@ namespace WhoWhoo3D.Gameplay.Game
         [Range(MinPlayers, MaxPlayers)]
         [SerializeField] private int playerCount = 2;
 
-        // The current goal is a local player-versus-player game, so every player is
-        // human by default. The AI is built and tested but deferred -- see docs/TODO.md.
-        [Header("Opponent (deferred: see docs/TODO.md)")]
+        [Header("Seat defaults")]
         [SerializeField] private bool enableAi;
         [SerializeField] private int humanPlayerId = 1;
         [SerializeField] private float aiThinkDelay = 0.5f;
@@ -227,7 +225,7 @@ namespace WhoWhoo3D.Gameplay.Game
             AdvanceWhileComplete();
         }
 
-        /// <summary>Builds the turn phase for whoever is active, human or AI.</summary>
+        /// <summary>Builds the turn phase for the active seat.</summary>
         public PlayerTurnPhase CreatePlayerTurnPhase()
         {
             if (!ActivePlayer.IsAi)
@@ -291,7 +289,7 @@ namespace WhoWhoo3D.Gameplay.Game
         /// <summary>True if the active player has at least one cell they can reinforce.</summary>
         public bool ActivePlayerHasMove() => BoardActions.HasLegalMove(Board, ActivePlayer.Id);
 
-        /// <summary>Local pointer entry point. AI turns generate their own commands.</summary>
+        /// <summary>Local pointer entry point.</summary>
         public bool TryPlayerAction(SlotId slotId) =>
             AcceptsBoardInput && TrySubmitClaim(new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, slotId));
 

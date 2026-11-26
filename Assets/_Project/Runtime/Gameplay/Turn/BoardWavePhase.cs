@@ -6,8 +6,7 @@ namespace WhoWhoo3D.Gameplay.Turn;
 
 /// <summary>
 /// Resolves the wave on the live board, then waits for the animator to finish
-/// replaying it. With no animator (Edit Mode tests, AI-vs-AI, animations off) the
-/// phase completes in Enter() and the game runs at full speed.
+/// replaying it. When playback is disabled, the phase completes in Enter().
 /// </summary>
 public sealed class BoardWavePhase : IGamePhase
 {

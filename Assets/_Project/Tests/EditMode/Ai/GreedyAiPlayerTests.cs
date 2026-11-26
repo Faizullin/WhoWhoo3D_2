@@ -111,7 +111,6 @@ public class GreedyAiPlayerTests
         try
         {
             var game = holder.AddComponent<GameController>();
-            // humanPlayer 0 matches nobody, so every player is AI-controlled.
             game.ConfigureAi(enabled: true, humanPlayer: 0, thinkDelay: 0f);
             game.InitializeWithBoard(TwoPlayerBoard());
 

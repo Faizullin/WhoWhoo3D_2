@@ -22,7 +22,7 @@ namespace WhoWhoo3D.Gameplay.Wave
         [Tooltip("Seconds a single chain step takes to play. Raise it to follow long chains.")]
         [Range(0.05f, 3f)]
         [SerializeField] private float stepDuration = 0.9f;
-        [Tooltip("Turn off to resolve waves instantly (useful when watching AI play).")]
+        [Tooltip("Turn off to resolve waves instantly.")]
         [SerializeField] private bool playAnimations = true;
 
         [Header("Flying tiles")]

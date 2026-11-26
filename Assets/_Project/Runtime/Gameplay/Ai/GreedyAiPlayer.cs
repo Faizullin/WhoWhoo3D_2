@@ -6,13 +6,7 @@ using WhoWhoo3D.Gameplay.Board;
 namespace WhoWhoo3D.Gameplay.Ai;
 
 /// <summary>
-/// One-ply greedy opponent. For each claimable slot it clones the board, claims it,
-/// resolves the resulting expansion, and scores the outcome as
-/// (own tiles gained) − (opponents' tiles gained). Highest wins; ties go to the
-/// lowest slot id so the AI is deterministic and replayable.
-///
-/// Deliberately shallow: it does not look ahead to the reply. Its job is to make the
-/// 1v1 loop playable, not to play well.
+/// Ranks each legal claim by net tile gain after expansion. Ties go to the lowest slot ID.
 /// </summary>
 public sealed class GreedyAiPlayer
 {

@@ -24,7 +24,6 @@ public class TurnLoopTests
         _holder = new GameObject("TestGameController");
         _game = _holder.AddComponent<GameController>();
 
-        // Human-only so these tests exercise the click path; AI is covered separately.
         _game.ConfigureAi(enabled: false, humanPlayer: 1);
     }
 

@@ -25,7 +25,7 @@ These are the choices baked into this guide. If you want different, change them 
 | Test framework | **Unity Test Framework + NUnit** | Built in. |
 | Topology model | **Graph (Cell / Side / SideLink)** — not cube-locked | Future-proofs for any polyhedron. See ARCHITECTURE §"Topology vs Geometry". |
 | Truth Pack location | **`/TruthPack/` standalone .NET 8 project** at the repo root, outside Assets/ | No Unity domain reload while testing core logic. Iterate fast. |
-| Multiplayer | **Deferred** — see [TODO.md](TODO.md) §2 | Don't touch Netcode until the local game ships. |
+| Multiplayer | In-memory replay first | [Networking work items](TODO.md#1-networking--online-multiplayer). |
 
 > If you instead want **cube-only model from day 1**, replace every "Cell" with "Cube", "Side" with "Face", and use the cube-locked WAVE_SPEC examples directly. Generalizing later means a model rewrite — accept that tradeoff knowingly.
 
@@ -392,7 +392,7 @@ In `_Project/Runtime/Gameplay/Turn/`:
 
 - [x] `IGamePhase.cs` — `Enter`, `Tick(deltaTime)`, `Exit`, `IsComplete`, `NextPhase()`
 - [x] `RoundStartPhase.cs`
-- [x] `PlayerTurnPhase.cs` — waits for input (human) or plays automatically (AI)
+- [x] `PlayerTurnPhase.cs` — waits for a valid claim for the active seat
 - [x] `BoardWavePhase.cs` — runs `WaveSimulator.Simulate`, hands off to animator, waits for completion
 - [x] `VictoryCheckPhase.cs`
 - [x] `GameController.cs` — owns the phase machine; one MonoBehaviour, scene singleton (NOT static)
@@ -410,7 +410,7 @@ Two rules the phase machine has to keep:
 
 In `_Project/Runtime/Gameplay/Player/`:
 
-- [x] `PlayerState.cs` — id, alive flag, `IsAi` flag, on-demand score
+- [x] `PlayerState.cs` — id, alive flag, on-demand score
 - [x] `PlayerRoster.cs` — list of PlayerStates, current turn index, `AdvanceToNextAlive()`
 - [ ] Colour and inventory list (deferred to Stage 9 / 10)
 
@@ -421,14 +421,9 @@ In `_Project/Runtime/Input/`:
 - [ ] Ensure Input Actions asset `_Project/Settings/InputActions.inputactions` configured (Click, Pause, Ability1-4)
 - [x] `PlayerInputHandler.cs` — reads actions, raycasts to find clicked `CellView`, publishes click event
 
-### 7.4 AI opponent — DEFERRED
+### 7.4 Test it
 
-Built and tested, then deferred: the current goal is local player-versus-player.
-`GameController.enableAi` ships `false`. See [TODO.md](TODO.md) §1.
-
-### 7.5 Test it
-
-- [x] Edit Mode: turn loop, click handling, AI move selection, AI-vs-AI game terminates
+- [x] Edit Mode: turn loop, click handling, rejection of stale and duplicate claims
 - [ ] Manually click tiles in the Editor, end turn, watch wave fire
 - [x] PlayMode test: scripted scenario — load map, simulate player clicks, assert end state
 
@@ -455,7 +450,7 @@ Three rules this stage has to keep:
   forward; it must never write back to `BoardModel`. A skipped or interrupted animation
   then cannot desync the game.
 - **Instant path stays first-class.** `WaveAnimator.CanPlay` is false outside Play Mode, so
-  Edit Mode tests and AI-vs-AI runs resolve waves with zero delay through the same code.
+  Edit Mode tests resolve waves with zero delay through the same code.
 - **`BoardWavePhase` polls, it does not subscribe.** This is why `IGamePhase.IsComplete` is
   a property rather than a callback — Stage 8 is the case it was shaped for.
 
@@ -596,7 +591,7 @@ the slab has three natural tiers — **4 corner faces expand at 2 tiles, 8 edge 
 `Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene` generates `DemoMapEditor.unity` the same
 way — a demo for authoring maps, not a shipping scene.
 
-Both are generated rather than hand-wired; see [TODO.md](TODO.md) §4 for why, and for the
+Both are generated rather than hand-wired; see [scene architecture](TODO.md#3-scene-architecture) for why, and for the
 `SingleplayerGame` / `MultiplayerGame` scenes that should come through the same builder.
 **Leave `Game.unity` alone** — it is the working two-cube reference.
 
@@ -604,13 +599,7 @@ Both are generated rather than hand-wired; see [TODO.md](TODO.md) §4 for why, a
 
 ## Deferred
 
-AI opponent, online multiplayer and the abilities system are **out of scope**, and so is the
-UI/mesh design pass ([TODO.md](TODO.md) §5) — though that one should land *before* the other
-three, since each would otherwise invent its own ad-hoc UI.
-
-**Nothing in TODO.md starts until the singleplayer core is finished and tested.** Extensions
-built against rules that are still moving put their seams in the wrong places; the slot-model
-rewrite already cost ~60 tests, the map schema, the AI's scoring and every view in one go.
+See the [architecture milestones](ARCHITECTURE.md) for multiplayer and the [backlog](TODO.md) for abilities and visual updates.
 
 ---
 

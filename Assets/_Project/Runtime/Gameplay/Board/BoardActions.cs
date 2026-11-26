@@ -4,8 +4,7 @@ using WhoWhoo3D.Domain.Board;
 namespace WhoWhoo3D.Gameplay.Board;
 
 /// <summary>
-/// The rules for what a player may click. Shared by human input and the AI so a move
-/// the AI simulates is exactly the move GameController executes.
+/// Shared selection and scoring rules for a board.
 /// </summary>
 public static class BoardActions
 {
@@ -39,8 +38,7 @@ public static class BoardActions
     }
 
     /// <summary>
-    /// Every slot the player may claim, ordered by (cell, side, edge) so callers —
-    /// the AI especially — behave identically run to run.
+    /// Claimable slots in deterministic (cell, side, edge) order.
     /// </summary>
     public static List<SlotId> LegalMoves(BoardModel board, PlayerId player)
     {

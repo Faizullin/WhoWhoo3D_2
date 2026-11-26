@@ -189,8 +189,7 @@ public sealed class BoardModel
             : null;
 
     /// <summary>
-    /// Deep copy. Mutations on the clone do not affect the original — the AI relies on
-    /// this to try moves without disturbing the live board.
+    /// Returns an independent copy of the board and its ownership state.
     /// </summary>
     public BoardModel Clone()
     {

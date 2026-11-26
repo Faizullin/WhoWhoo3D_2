@@ -6,7 +6,7 @@ using WhoWhoo3D.Gameplay.Game;
 namespace WhoWhoo3D.Gameplay.Turn;
 
 /// <summary>
-/// Waits for a human claim or submits the computer's choice after its think delay.
+/// Accepts one claim from the active seat.
 /// </summary>
 public sealed class PlayerTurnPhase : IGamePhase
 {
