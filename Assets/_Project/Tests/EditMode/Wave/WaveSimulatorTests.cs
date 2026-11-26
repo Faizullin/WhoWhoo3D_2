@@ -300,13 +300,14 @@ public class WaveSimulatorTests
     {
         var board = TestBoards.TwoCubes();
         var topA = new SideId(TestBoards.At(0, 0, 0), 0);
+        var topB = new SideId(TestBoards.At(1, 0, 0), 0);
 
         // Cube A's top face borders cube B's top face across the seam.
         var acrossSeam = board.GetSide(topA).Slots
             .Select(s => s.Partner)
-            .Where(p => p.Side.Cell.Value == "cube_b")
+            .Where(p => p.Side == topB)
             .ToList();
-        Assert.IsNotEmpty(acrossSeam, "Precondition: the surface network spans both cubes.");
+        Assert.AreEqual(1, acrossSeam.Count, "The two top faces share exactly one edge.");
 
         TestBoards.FillFace(board, topA, P1);
         WaveSimulator.Simulate(board, Config);

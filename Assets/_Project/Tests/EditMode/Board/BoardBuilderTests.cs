@@ -113,11 +113,13 @@ public class BoardBuilderTests
         var slot = board.GetSide(new SideId(BoardBuilder.IdFor(new Coord(0, 0, 0)), 0)).Slots.First().Id;
 
         builder.SetOwner(slot, P1);
-        builder.AddCube(new Coord(0, 1, 0));            // stack a cube somewhere else
+        builder.AddCube(new Coord(2, 1, 2));            // stack above the opposite corner
 
         var rebuilt = builder.Build(BoardBuilder.TopFaceOnly);
 
-        Assert.AreEqual(P1, rebuilt.GetSlot(slot).Owner);
+        var survivingSlot = rebuilt.GetSlot(slot);
+        Assert.IsNotNull(survivingSlot, "Editing the opposite corner should leave this slot in place.");
+        Assert.AreEqual(P1, survivingSlot.Owner);
     }
 
     [Test]
