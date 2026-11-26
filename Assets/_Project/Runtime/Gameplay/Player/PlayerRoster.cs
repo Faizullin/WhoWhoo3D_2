@@ -20,6 +20,9 @@ public sealed class PlayerRoster
 
     public PlayerState ActivePlayer => _players[_currentIndex];
     public IReadOnlyList<PlayerState> Players => _players;
+    internal void RestoreActivePlayer(PlayerId id) =>
+        _currentIndex = _players.FindIndex(player => player.Id == id);
+
     public int AliveCount => _players.Count(p => p.IsAlive);
 
     /// <summary>

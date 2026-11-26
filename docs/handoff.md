@@ -1,6 +1,6 @@
 # WhoWhoo3D_2 — Project Handoff
 
-The September 2026 notes below record the earlier architecture and test inventory. The current local match, verification counts, video and milestone screenshots are in the [gameplay report](reports/README.md).
+The September 2026 notes below record the earlier architecture and test inventory. The current local and LAN matches, verification counts, video and screenshots are in the [gameplay report](reports/README.md).
 
 ---
 
@@ -18,7 +18,7 @@ The September 2026 notes below record the earlier architecture and test inventor
   the edge, and the face itself is released back to white.
 - Last player holding tiles wins.
 
-**Current goal: a simple local player-versus-player game.** See the [roadmap](ARCHITECTURE.md) for the current multiplayer milestones.
+For current solo, hot-seat and LAN play, see the [project overview](../README.md) and [architecture](ARCHITECTURE.md).
 
 ---
 
@@ -132,8 +132,7 @@ Consequences still visible in the repo:
 - **No `git add` / `git commit`** — the user stages and commits themselves.
 - **Unity 6 LTS** (6000.4.5f1), URP, New Input System.
 - **`noEngineReferences: true`** on the Domain assembly — keep domain code free of Unity API.
-- **Current goal is the local player-vs-player game.** Networking and abilities are
-  deferred in [TODO.md](TODO.md); don't start them while a roadmap stage is open.
+- See [TODO.md](TODO.md) for the current networking and ability milestones.
 - **Tiles always exist in pairs.** Create and delete slot pairs, never halves — a lone slot
   fails `Validate()`.
 - **`CubeGeometry` is the only place that knows a cell is a cube.** The map author must use

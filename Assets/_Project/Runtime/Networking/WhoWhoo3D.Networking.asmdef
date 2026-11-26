@@ -1,0 +1,4 @@
+{
+    "name": "WhoWhoo3D.Networking",
+    "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay"]
+}

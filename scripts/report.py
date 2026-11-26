@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +54,42 @@ def verify_suite(editor, project, work, platform, assembly):
     return passed
 
 
+def record_lan(command, env, frames, work):
+    players = []
+    deadline = time.monotonic() + 120
+
+    def wait_for(names):
+        while not all((frames / name).is_file() for name in names):
+            for player, log in players:
+                if player.poll() is not None:
+                    raise RuntimeError(f"LAN player exited early.\n{log.read_text(errors='replace')[-3000:]}")
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"Timed out waiting for {names}")
+            time.sleep(0.1)
+
+    try:
+        for role in ("host", "guest"):
+            log = work / f"lan-{role}.log"
+            player = subprocess.Popen([*command, "-logFile", log], env=dict(env, WHOWHOO_LAN_ROLE=role))
+            players.append((player, log))
+            if role == "host":
+                wait_for(["port"])
+        wait_for(["host.json", "guest.json", "lan-guest-turn.png", "lan-host-result.png", "lan-guest-result.png"])
+        result = json.loads((frames / "host.json").read_text())
+        if result != json.loads((frames / "guest.json").read_text()) or not result["finished"]:
+            raise RuntimeError("Host and guest finished with different match states.")
+        (frames / "complete").touch()
+        for player, log in players:
+            if player.wait(timeout=10):
+                raise RuntimeError(f"LAN player failed.\n{log.read_text(errors='replace')[-3000:]}")
+        return result
+    finally:
+        for player, _ in players:
+            if player.poll() is None:
+                player.kill()
+            player.wait()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--unity", help="Path to the pinned Unity editor executable")
@@ -80,9 +117,10 @@ def main():
         (capture / "Editor").mkdir()
         shutil.copy(TOOLS / "BuildReportPlayer.cs", capture / "Editor")
         shutil.copy(TOOLS / "MatchRecorder.cs", capture)
+        shutil.copy(TOOLS / "LanMatchRecorder.cs", capture)
         shutil.copy(project / "Assets/_Project/Tests/PlayMode/DemoMatchSequence.cs", capture)
         (capture / "ReportCapture.asmdef").write_text(json.dumps({
-            "name": "ReportCapture", "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay", "Unity.InputSystem"]}))
+            "name": "ReportCapture", "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay", "WhoWhoo3D.Networking", "Unity.InputSystem"]}))
         (capture / "csc.rsp").write_text("-langversion:latest\n")
         (capture / "Editor/ReportBuild.asmdef").write_text(json.dumps({"name": "ReportBuild", "includePlatforms": ["Editor"]}))
         player = work / "Game.app"
@@ -94,8 +132,9 @@ def main():
              "BuildReportPlayer.Build", "-logFile", log], log, env=env)
         log = work / "player.log"
         exe = next((player / "Contents/MacOS").iterdir())
-        run([exe, "-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720",
-             "-logFile", log], log, env=env)
+        command = [exe, "-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720"]
+        run([*command, "-logFile", log], log, env=env)
+        lan = record_lan(command, env, frames, work)
         lines = (frames / "timeline.tsv").read_text().splitlines()
         times = {label: int(frame) / FPS for frame, label in (line.split("\t") for line in lines)}
         result = re.search(r"Demo match completed in (\d+) clicks. Winner P(\d+)\.", log.read_text())
@@ -104,7 +143,7 @@ def main():
         output = work / "report"
         screens = output / "screens"
         screens.mkdir(parents=True)
-        for name in SCENES:
+        for name in [*SCENES, "lan-guest-turn", "lan-host-result"]:
             shutil.copy(frames / f"{name}.png", screens)
         movie = output / "demo4x4.mp4"
         run(["ffmpeg", "-loglevel", "error", "-framerate", str(FPS), "-i", frames / "frame-%05d.png",
@@ -123,10 +162,16 @@ def main():
             "The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera "
             "and tile colliders. Setup and restart use the same controller actions as the HUD buttons. "
             "Wave playback is accelerated for review. This run covers the local game on macOS. "
-            "Human playtesting and other platforms are still open.", "",
+            "The LAN run below uses two copies of the same player.", "",
         ]
         for name, title in SCENES.items():
             report += [f"## {title}", "", f"{times[name]:.1f} s", "", f"![{title}](screens/{name}.png)", ""]
+        outcome = f"P{lan['winner']} won" if lan['winner'] else "a draw"
+        report += ["## LAN match", "",
+                   f"Two macOS player processes connected over loopback. The host played P1 and the guest played P2. "
+                   f"Both finished on turn {lan['turn']} with the same board, roster and result ({outcome}).", "",
+                   "![Guest taking a turn](screens/lan-guest-turn.png)", "",
+                   "![Result on the host](screens/lan-host-result.png)", ""]
         report += ["## Refresh", "", "On a graphics-capable macOS desktop with the pinned Unity editor, Mac build support, "
                    "Python 3, FFmpeg and ffprobe installed, run the following from the repo root.", "",
                    "```sh", "python3 scripts/report.py", "```", "",

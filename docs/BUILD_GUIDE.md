@@ -25,7 +25,7 @@ These are the choices baked into this guide. If you want different, change them 
 | Test framework | **Unity Test Framework + NUnit** | Built in. |
 | Topology model | **Graph (Cell / Side / SideLink)** — not cube-locked | Future-proofs for any polyhedron. See ARCHITECTURE §"Topology vs Geometry". |
 | Truth Pack location | **`/TruthPack/` standalone .NET 8 project** at the repo root, outside Assets/ | No Unity domain reload while testing core logic. Iterate fast. |
-| Multiplayer | In-memory replay first | [Networking work items](TODO.md#1-networking--online-multiplayer). |
+| Multiplayer | Player-hosted LAN over TCP | [Networking work items](TODO.md#1-networking--online-multiplayer). |
 
 > If you instead want **cube-only model from day 1**, replace every "Cell" with "Cube", "Side" with "Face", and use the cube-locked WAVE_SPEC examples directly. Generalizing later means a model rewrite — accept that tradeoff knowingly.
 
@@ -46,7 +46,7 @@ WhoWhoo3D_2/                          ← Unity project
 │       │   ├── Data/
 │       │   ├── Input/
 │       │   ├── UI/
-│       │   ├── Networking/           ← stays empty until Stage 13
+│       │   ├── Networking/           ← LAN host, guest and TCP framing
 │       │   ├── MapEditor/
 │       │   └── Utils/
 │       ├── Editor/
@@ -591,8 +591,7 @@ the slab has three natural tiers — **4 corner faces expand at 2 tiles, 8 edge 
 `Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene` generates `DemoMapEditor.unity` the same
 way — a demo for authoring maps, not a shipping scene.
 
-Both are generated rather than hand-wired; see [scene architecture](TODO.md#3-scene-architecture) for why, and for the
-`SingleplayerGame` / `MultiplayerGame` scenes that should come through the same builder.
+The builder generates both scenes. Solo, hot-seat and LAN share the setup and board in `Demo4x4`. See the [scene architecture](TODO.md#3-scene-architecture).
 **Leave `Game.unity` alone** — it is the working two-cube reference.
 
 ---
@@ -638,7 +637,7 @@ Build these fresh in `WhoWhoo3D_2/Assets/_Project/`:
 5. **Always run `BoardModel.Validate()` after every mutation in Editor / debug builds.** Catches corruption early.
 6. **Pure C# first, Unity second.** Anything that *can* be tested without a scene running, *should* be.
 7. **Don't gate scene loading on network state.** Loader loads. Network is a separate concern.
-8. **One model, two views.** Singleplayer and Multiplayer share the same `BoardModel` and `WaveSimulator`. Mode is a flag on `GameController`, not a duplicated class hierarchy.
+8. **One model, two views.** Singleplayer and Multiplayer share the same `BoardModel` and `WaveSimulator`. Local seats submit directly. LAN seats submit through `IMatchConnection`.
 
 ---
 

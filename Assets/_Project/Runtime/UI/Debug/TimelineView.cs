@@ -30,7 +30,7 @@ namespace WhoWhoo3D.UI.Debugging
         private const float PanelHeight = 108f;
 
         private Rect _panelPixels;
-        public bool CoversScreenPoint(Vector2 point) => isActiveAndEnabled && visible &&
+        public bool CoversScreenPoint(Vector2 point) => isActiveAndEnabled && visible && gameController != null && gameController.Connection == null &&
             _panelPixels.Contains(new Vector2(point.x, Screen.height - point.y));
 
         private GUIStyle _button;
@@ -51,7 +51,7 @@ namespace WhoWhoo3D.UI.Debugging
 
         private void Update()
         {
-            if (gameController == null || gameController.InSetup) return;
+            if (gameController == null || gameController.InSetup || gameController.Connection != null) return;
 
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             if (keyboard == null) return;
@@ -65,7 +65,7 @@ namespace WhoWhoo3D.UI.Debugging
 
         private void OnGUI()
         {
-            if (!visible || gameController == null || gameController.Board == null || gameController.InSetup) return;
+            if (!visible || gameController == null || gameController.Board == null || gameController.InSetup || gameController.Connection != null) return;
 
             EnsureStyles();
 

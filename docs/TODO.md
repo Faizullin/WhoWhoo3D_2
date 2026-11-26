@@ -4,15 +4,14 @@ The [architecture milestones](ARCHITECTURE.md) describe the order of implementat
 
 ## 1. Networking / Online Multiplayer
 
-The local controller validates turn-addressed claims. An Edit Mode regression now replays a complete demo match on two independent boards and checks the outcome after every delivery. The next step is a host session that binds the sender to a seat and publishes each accepted turn in order.
+One player hosts and plays P1. Guests connect by IPv4 address. The host owns the match for the lifetime of the room.
 
-### Work items
-
-- [ ] `WhoWhoo3D.Networking` assembly (folder exists, no sources).
-- [ ] Bind the sender to its assigned seat before forwarding a claim to the host controller.
-- [ ] Result-event replication and client-side re-application.
-- [ ] Lobby, matchmaking, reconnect.
-- [x] Replay accepted claims on independent boards and compare ordered wave changes, ownership, elimination, turn and winner after each claim.
+- [x] Bind each TCP connection to a seat and validate its claims.
+- [x] Deliver accepted turns in order to the host view and guests.
+- [x] Wait for 2–4 seats, restore dropped guests from a snapshot and synchronize rematches.
+- [x] Compare independent boards after every accepted claim and verify standalone host and guest results.
+- [ ] Discover rooms on the LAN. Advertise room name, protocol version and available seats. Remove expired listings and keep direct joining available.
+- [ ] Exercise discovery and direct joining across separate network interfaces in automation.
 
 ---
 
@@ -41,13 +40,9 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 | `Game.unity` | The original hand-wired scene. **Leave it alone** — it is the working reference. |
 | `Demo4x4.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build Demo4x4 Scene`. 16 cubes, 3 players, top faces only. |
 | `DemoMapEditor.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene`. Authoring demo, not a shipping scene. |
-| `SingleplayerGame.unity` | **To do.** Same builder, plus map selection and player-count setup. |
-| `MultiplayerGame.unity` | **To do.** Same builder again; only the session layer differs. |
+| Solo, hot-seat and LAN | Shared `Demo4x4.unity` setup and board. Seat controls and the session determine how moves arrive. |
 
-- [ ] Extend `SceneSpec` with map selection and a start screen rather than fixed values.
-- [ ] `SingleplayerGame` scene once Stage 9 (HUD, legibility, victory, restart) is done.
-- [ ] `MultiplayerGame` scene — after the host/join milestone.
-- [ ] Retire `Game.unity` once `SingleplayerGame` supersedes it.
+- [ ] Decide which scene to ship as the default entry point.
 
 ---
 
@@ -70,8 +65,8 @@ half — you cannot tell what is clickable without reading WAVE_SPEC.
 
 ### UI interaction
 - [ ] Replace `ScoreboardView` and `TimelineView` IMGUI with uGUI/TextMeshPro.
-- [ ] Hover and selection feedback on tiles — the single biggest legibility gap.
-- [ ] Click affordances: highlight legal slots for the active player, dim locked faces.
+- [x] Hover and selection feedback on tiles — the single biggest legibility gap.
+- [x] Click affordances: highlight legal slots for the active player, dim locked faces.
 - [ ] Turn hand-off screen for hot-seat play, so players know the turn changed.
 - [ ] Wave playback controls surfaced properly rather than as a debug bar.
 
@@ -85,7 +80,7 @@ Turn handoff and board readability also support online play and future target se
       still use `TileStack` / `SideStateChange`, deleted in the slot-model rewrite. Nothing
       on the dev machine builds it (`dotnet` is not installed), which is how it rotted twice.
       Recommendation: delete it; the Unity Edit Mode suite covers the same ground.
-- [ ] **Delete the empty assemblies** `Data`, `Utils`, `MapEditor` and `Tests.PlayMode`
+- [ ] **Delete the empty assemblies** `Data` and `Utils`
       until the stage that fills them arrives. Each is an asmdef with zero `.cs` files.
       (`Core` gets sources at Stage 9's EventBus, so leave that one.) They are referenced by
       GUID from `Gameplay`, `Input`, `UI` and `Editor`, so removing one means editing those
@@ -99,7 +94,7 @@ Turn handoff and board readability also support online play and future target se
 - [ ] **`GameConfig` ScriptableObject** for the 13 tuning values currently typed into the
       inspector across four components.
 - [ ] **Editor auto-wire** (`Reset`/`OnValidate`) so scene references fill themselves.
-- [ ] **PlayMode test suite** — the asmdef exists, no tests in it.
+- [x] Play Mode coverage for the saved scene and LAN match lifecycle.
 - [ ] Audio, VFX polish.
 - [ ] Non-cube cell shapes. The Domain is already shape-agnostic; only `CubeGeometry` and
       the map generator assume six faces.

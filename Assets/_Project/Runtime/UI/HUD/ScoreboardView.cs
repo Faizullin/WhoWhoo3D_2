@@ -5,6 +5,7 @@ using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.Game;
 using WhoWhoo3D.Gameplay.Turn;
+using WhoWhoo3D.Networking;
 
 namespace WhoWhoo3D.UI.HUD
 {
@@ -40,6 +41,8 @@ namespace WhoWhoo3D.UI.HUD
 
         public enum Corner { TopLeft, TopRight }
 
+        private LanMatchSession _session;
+        private LanRoomPanel _room;
         private string[] _maps;
         private int _mapIndex;
         private int _players;
@@ -63,7 +66,10 @@ namespace WhoWhoo3D.UI.HUD
         private void Awake()
         {
             if (gameController == null)
-                gameController = FindAnyObjectByType<GameController>();
+                gameController = GetComponent<GameController>() ?? FindAnyObjectByType<GameController>();
+            _session = GetComponent<LanMatchSession>() ?? gameObject.AddComponent<LanMatchSession>();
+            _session.Bind(gameController);
+            _room = new LanRoomPanel(_session);
         }
 
         private void OnDestroy()
@@ -87,14 +93,15 @@ namespace WhoWhoo3D.UI.HUD
 
             float logicalWidth = Screen.width / scale;
             float logicalHeight = Screen.height / scale;
-            if (gameController.InSetup)
+            if (gameController.InSetup || _room.InLobby)
             {
                 DrawSetup(logicalWidth, logicalHeight, scale);
                 GUI.matrix = previousMatrix;
                 return;
             }
             int players = gameController.Roster.Players.Count;
-            float height = 34f + players * RowHeight + (gameController.IsGameOver ? 103f : 54f);
+            bool inRoom = _session.State == LanState.Playing;
+            float height = 34f + players * RowHeight + (gameController.IsGameOver || inRoom ? 112f : 54f);
             float x = corner == Corner.TopLeft ? margin.x : logicalWidth - width - margin.x;
 
             var panel = new Rect(x, margin.y, width, height);
@@ -108,7 +115,15 @@ namespace WhoWhoo3D.UI.HUD
             GUILayout.Space(6f);
             GUILayout.Label(StatusLine(), _note);
 
-            if (gameController.IsGameOver)
+            if (inRoom)
+            {
+                GUILayout.BeginHorizontal();
+                if (_session.IsHost && gameController.IsGameOver && GUILayout.Button("Play again", GUILayout.Height(30)))
+                    _session.Rematch();
+                if (GUILayout.Button(_session.IsHost ? "End room" : "Leave room", GUILayout.Height(30))) _session.Leave();
+                GUILayout.EndHorizontal();
+            }
+            else if (gameController.IsGameOver)
             {
                 GUILayout.Space(6);
                 GUILayout.BeginHorizontal();
@@ -137,11 +152,25 @@ namespace WhoWhoo3D.UI.HUD
             }
 
             float w = Mathf.Min(380, screenWidth - 24);
-            var panel = new Rect((screenWidth - w) / 2, (screenHeight - 252) / 2, w, 252);
+            float height = Mathf.Min(screenHeight - 12, 320);
+            var panel = new Rect((screenWidth - w) / 2, (screenHeight - height) / 2, w, height);
             _panelPixels = new Rect(panel.position * scale, panel.size * scale);
             GUI.DrawTexture(panel, _panelTex);
             GUILayout.BeginArea(new Rect(panel.x + 18, panel.y + 12, w - 36, panel.height - 20));
-            GUILayout.Label("Local match", _title);
+            GUILayout.Label(_room.InLobby ? "LAN room" : "Match setup", _title);
+            if (_room.InLobby)
+            {
+                _room.DrawLobby();
+                GUILayout.EndArea();
+                return;
+            }
+            _room.DrawModes();
+            if (_room.IsJoining)
+            {
+                _room.DrawJoin();
+                GUILayout.EndArea();
+                return;
+            }
             GUILayout.Space(6);
             GUILayout.Label("Map");
             _mapIndex = GUILayout.SelectionGrid(_mapIndex, _maps, 2, GUILayout.Height(28));
@@ -154,16 +183,20 @@ namespace WhoWhoo3D.UI.HUD
                 var swatch = GUILayoutUtility.GetRect(10, 10, GUILayout.Width(10));
                 GUI.DrawTexture(swatch, Texture2D.whiteTexture, ScaleMode.StretchToFill, false, 0,
                     SlotView.ColorFor(new PlayerId(i)), 0, 2);
-                GUILayout.Label($"P{i}");
+                GUILayout.Label(_room.IsSolo && i > 1 ? $"CPU {i}" : $"P{i}");
             }
             GUILayout.EndHorizontal();
             GUILayout.FlexibleSpace();
             if (_setupError != null) GUILayout.Label(_setupError);
-            if (_maps.Length > 0 && GUILayout.Button("Start match", GUILayout.Height(35)))
+            if (_maps.Length > 0 && _room.IsHosting) _room.DrawHost(_maps[_mapIndex], _players);
+            else if (_maps.Length > 0 && GUILayout.Button("Start match", GUILayout.Height(35)))
             {
                 try
                 {
-                    gameController.StartLocalMatch(_maps[_mapIndex], _players);
+                    var seats = new SeatControl[_players];
+                    for (int i = 1; i < seats.Length; i++)
+                        seats[i] = _room.IsSolo ? SeatControl.Computer : SeatControl.LocalHuman;
+                    gameController.StartMatch(new MatchSetup(_maps[_mapIndex], seats));
                     _setupError = null;
                 }
                 catch (Exception ex) { _setupError = ex.Message; }
@@ -222,11 +255,19 @@ namespace WhoWhoo3D.UI.HUD
                     ? "Draw — no winner"
                     : $"Game over — P{gameController.Winner.Value} wins";
 
+            if (_session.State == LanState.Playing)
+            {
+                string who = $"You are P{_session.LocalSeat}";
+                if (gameController.CurrentPhase is BoardWavePhase) return who + " · Expanding…";
+                return gameController.ActivePlayer.Id.Value == _session.LocalSeat
+                    ? who + " · Your turn" : who + $" · Waiting for P{gameController.ActivePlayer.Id.Value}";
+            }
             if (gameController.CurrentPhase is BoardWavePhase)
                 return "Expanding…";
 
             if (gameController.IsReviewingHistory) return "Reviewing history";
             if (gameController.IsPaused) return "Paused";
+            if (gameController.ActivePlayer.IsAi) return $"P{gameController.ActivePlayer.Id.Value} is choosing a move…";
             return $"P{gameController.ActivePlayer.Id.Value} to play · choose a mint tile";
         }
 

@@ -1,6 +1,7 @@
 {
     "name": "WhoWhoo3D.Tests.PlayMode",
     "references": [
+        "WhoWhoo3D.Networking",
         "WhoWhoo3D.Domain",
         "WhoWhoo3D.Gameplay",
         "Unity.InputSystem"

@@ -42,8 +42,9 @@ namespace WhoWhoo3D.Gameplay.Game
         public string MapName => Setup?.MapName ?? mapFileName;
         public int PlayerCount => Setup?.Seats.Count ?? playerCount;
         public bool InSetup { get; private set; }
+        public IMatchConnection Connection { get; set; }
         public bool AcceptsBoardInput => !InSetup && !IsGameOver && !IsPaused && !IsReviewingHistory
-            && CurrentPhase is PlayerTurnPhase turn && !turn.IsAiTurn;
+            && CurrentPhase is PlayerTurnPhase turn && !turn.IsAiTurn && (Connection?.CanPlay(ActivePlayer.Id) ?? true);
 
         [Header("Players")]
         [Tooltip("How many people are playing on this machine, hot-seat.")]
@@ -98,6 +99,7 @@ namespace WhoWhoo3D.Gameplay.Game
 
         private void Start()
         {
+            if (Board != null) return;
             StartLocalMatch(mapFileName, playerCount);
             if (showSetupOnStart) OpenSetup();
         }
@@ -130,12 +132,7 @@ namespace WhoWhoo3D.Gameplay.Game
         public void StartMatch(MatchSetup setup)
         {
             if (setup == null) throw new ArgumentNullException(nameof(setup));
-            var board = MapLoader.Load(setup.MapName);
-            foreach (var cell in board.Cells.Values)
-                foreach (var side in cell.ExposedSides)
-                    foreach (var slot in side.Slots)
-                        if (slot.Owner.Value > setup.Seats.Count)
-                            board.SetOwner(slot.Id, PlayerId.None);
+            var board = LoadOpeningBoard(setup);
 
             if (boardView == null)
                 boardView = FindAnyObjectByType<BoardView>();
@@ -143,7 +140,28 @@ namespace WhoWhoo3D.Gameplay.Game
                 waveAnimator = FindAnyObjectByType<WaveAnimator>();
 
             InitializeMatch(board, boardView, setup);
-            Debug.Log($"Game initialized: {Roster.Players.Count} players on map '{setup.MapName}'");
+        }
+
+        public void StartMatchWithoutPresentation(MatchSetup setup) =>
+            InitializeMatch(LoadOpeningBoard(setup), null, setup);
+
+        private static BoardModel LoadOpeningBoard(MatchSetup setup)
+        {
+            var board = MapLoader.Load(setup.MapName);
+            foreach (var cell in board.Cells.Values)
+                foreach (var side in cell.ExposedSides)
+                    foreach (var slot in side.Slots)
+                        if (slot.Owner.Value > setup.Seats.Count)
+                            board.SetOwner(slot.Id, PlayerId.None);
+
+            return board;
+        }
+
+        public void RestoreMatch(MatchSetup setup, MatchSnapshot snapshot)
+        {
+            var board = LoadOpeningBoard(setup);
+            snapshot.RestoreBoard(board, setup.Seats.Count);
+            InitializeMatch(board, boardView, setup, snapshot);
         }
 
         /// <summary>
@@ -153,7 +171,7 @@ namespace WhoWhoo3D.Gameplay.Game
         public void InitializeWithBoard(BoardModel board, BoardView view = null) =>
             InitializeMatch(board, view, ConfiguredSetup(mapFileName, playerCount));
 
-        private void InitializeMatch(BoardModel board, BoardView view, MatchSetup setup)
+        private void InitializeMatch(BoardModel board, BoardView view, MatchSetup setup, MatchSnapshot snapshot = null)
         {
             Setup = setup;
             waveAnimator?.StopAndSnapToModel();
@@ -175,7 +193,26 @@ namespace WhoWhoo3D.Gameplay.Game
             ConsecutiveSkippedTurns = 0;
 
             Roster = BuildRoster();
-            SetPhase(new RoundStartPhase(this));
+            if (snapshot == null)
+            {
+                SetPhase(new RoundStartPhase(this));
+                return;
+            }
+
+            TurnNumber = snapshot.turn;
+            ConsecutiveSkippedTurns = snapshot.skipped;
+            for (int i = 0; i < Roster.Players.Count; i++)
+            {
+                Roster.Players[i].IsAlive = snapshot.alive[i];
+                Roster.Players[i].HasHeldTiles = snapshot.held[i];
+            }
+            Roster.RestoreActivePlayer(new PlayerId(snapshot.active));
+            if (snapshot.finished)
+            {
+                _currentPhase = null;
+                DeclareGameOver(new PlayerId(snapshot.winner));
+            }
+            else SetPhase(CreatePlayerTurnPhase());
         }
 
         /// <summary>Sets how many people are playing. Call before InitializeWithBoard.</summary>
@@ -290,8 +327,12 @@ namespace WhoWhoo3D.Gameplay.Game
         public bool ActivePlayerHasMove() => BoardActions.HasLegalMove(Board, ActivePlayer.Id);
 
         /// <summary>Local pointer entry point.</summary>
-        public bool TryPlayerAction(SlotId slotId) =>
-            AcceptsBoardInput && TrySubmitClaim(new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, slotId));
+        public bool TryPlayerAction(SlotId slotId)
+        {
+            if (!AcceptsBoardInput) return false;
+            var claim = new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, slotId);
+            return Connection?.Submit(claim) ?? TrySubmitClaim(claim);
+        }
 
         public void OnSlotClicked(SlotId slotId) => TryPlayerAction(slotId);
 
@@ -485,7 +526,7 @@ namespace WhoWhoo3D.Gameplay.Game
         public void ShowTurnHints(bool visible)
         {
             if (boardView != null && Board != null)
-                boardView.ShowTurnHints(Board, visible ? ActivePlayer.Id : PlayerId.None);
+                boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None);
         }
 
         public void RefreshBoardView()

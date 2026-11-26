@@ -2,7 +2,7 @@
 
 > Design reference for the project at `WhoWhoo3D_2/`. Companion docs:
 > - [BUILD_GUIDE.md](BUILD_GUIDE.md) — concrete stage-by-stage build manual
-> - [TODO.md](TODO.md) — deferred work (networking and abilities)
+> - [TODO.md](TODO.md) — remaining work
 > - [WAVE_SPEC.md](WAVE_SPEC.md) — gameplay rules
 > - [MAP_SCHEMA.md](MAP_SCHEMA.md) — data contract
 
@@ -34,10 +34,11 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 | Domain | Board topology (`Cell`, `Side`, `Slot`), map serialization, deterministic wave simulation, and the `Match/ClaimSlotCommand` value type. The assembly sets `noEngineReferences`. |
 | Gameplay | Match setup and orchestration in `Game/`, roster in `Player/` and phases in `Turn/`. Board views, wave playback, map loading and history also live here. |
 | Input | Resolves a pointer to a slot and submits a local action to the controller. |
-| UI | Match setup, scoreboard, results and debug timeline. |
+| UI | Match setup, LAN room controls, scoreboard, results and local debug timeline. |
+| Networking | TCP connections, room membership, seat assignment and ordered delivery of accepted claims. Depends on Gameplay and Domain. |
 | MapEditor | Map authoring and its HUD. The editor builds boards using the same `BoardBuilder` as the game tests. |
 
-`Core`, `Data` and `Utils` are assembly scaffolds. `Networking/` is reserved for the future transport. Unity scene builders live under `_Project/Editor`. Rule tests and the saved-scene match check live under `_Project/Tests/EditMode` and `PlayMode`.
+`Core`, `Data` and `Utils` are assembly scaffolds. Unity scene builders live under `_Project/Editor`. Rule tests and the saved-scene match check live under `_Project/Tests/EditMode` and `PlayMode`.
 
 ## Code conventions
 
@@ -52,7 +53,13 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 
 Pointer input checks the active seat before calling `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number and slot. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
 
-Commands currently belong to a single running match on the Unity main thread. A future network adapter will bind each connection to a seat and match instance before forwarding a command.
+### LAN host and guest
+
+`LanMatchSession` owns the listening socket and room on the host. P1 plays on the same computer. Each guest connects over IPv4 and receives one seat. Before play starts, each guest checks the protocol version and the digest of its installed map. TCP frames carry length-prefixed JSON. Socket processing and rule changes run on the Unity main thread.
+
+The host runs a separate `GameController` without a view or wave animator. A move must match its connection’s seat, the current round, the active player, the expected turn and a legal slot. The host assigns a sequence number to each accepted claim. Every visible board, including P1’s, processes the same claims in order and can finish its own animations between moves. Offline modes call the same rules directly.
+
+When a guest drops during play, the room pauses. The running guest keeps a private seat token in memory. Once all seats reconnect, the host sends a settled snapshot with ownership, active seat, turn, elimination state, skipped turns and result. Each view rebuilds from the agreed map and resumes at the host’s sequence number. Starting a rematch increments the round and resets the sequence. The room lasts for the lifetime of the host process. This transport is for a trusted local network.
 
 ## Key systems
 
@@ -142,7 +149,7 @@ EventBus.Subscribe<TurnEndedEvent>(handler);
 
 Rule of thumb: if subscriber order or completion matters, use a direct call. If it's "fire and forget" listeners reacting to a fact, use the bus.
 
-### 5. Single GameController
+### 5. Match rules
 
 `GameController` owns the phase machine and accepts match commands for all seats.
 
@@ -150,7 +157,9 @@ Rule of thumb: if subscriber order or completion matters, use a direct call. If 
 
 The Edit Mode replay test runs the demo on two independent match instances. It compares ordered changes, ownership, roster and winner after each accepted claim and retries every delivery.
 
-1. Bind each connection to a seat, deliver ordered host results and allow presentation to lag behind the authoritative turn.
-2. Add transport-backed host/join, seat assignment and reconnect from a host snapshot. The host validates commands using the same claim rules.
+The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery, a three-player match through victory, and a synchronized rematch. The capture tool also plays a match between two independent desktop processes and compares their final snapshots.
 
-The latest recorded hot-seat run and its verification results are in the [gameplay report](reports/README.md).
+1. Add local room discovery to the join screen. Show room name and open seats, refresh when a room fills or closes, and retain direct IPv4 entry.
+2. Extend automated coverage to discovery across separate network interfaces and direct joining when broadcasts are unavailable.
+
+The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).

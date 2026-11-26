@@ -17,7 +17,12 @@ public class MatchRecorder : MonoBehaviour
     private readonly WaitForEndOfFrame _endOfFrame = new();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void Install() => new GameObject("Session recording").AddComponent<MatchRecorder>();
+    private static void Install()
+    {
+        var recorder = new GameObject("Session recording");
+        if (Environment.GetEnvironmentVariable("WHOWHOO_LAN_ROLE") == null) recorder.AddComponent<MatchRecorder>();
+        else recorder.AddComponent<LanMatchRecorder>();
+    }
 
     private IEnumerator Start()
     {
