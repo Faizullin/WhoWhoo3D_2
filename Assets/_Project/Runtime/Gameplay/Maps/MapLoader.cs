@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Domain.Maps;
@@ -15,6 +16,10 @@ namespace WhoWhoo3D.Gameplay.Maps;
 public static class MapLoader
 {
     public const string MapsFolder = "Maps";
+
+    public static string[] ListMaps() =>
+        Directory.GetFiles(Path.Combine(Application.streamingAssetsPath, MapsFolder), "*.json")
+            .Select(Path.GetFileNameWithoutExtension).OrderBy(name => name, System.StringComparer.Ordinal).ToArray();
 
     public static string PathFor(string mapFileName) =>
         Path.Combine(Application.streamingAssetsPath, MapsFolder, mapFileName + ".json");

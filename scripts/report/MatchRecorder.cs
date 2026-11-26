@@ -1,0 +1,82 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using WhoWhoo3D.Gameplay.Board.View;
+using WhoWhoo3D.Gameplay.Game;
+using WhoWhoo3D.Tests.PlayMode;
+
+public class MatchRecorder : MonoBehaviour
+{
+    private string _directory;
+    private string _checkpoint;
+    private int _frame;
+    private bool _finished;
+    private readonly WaitForEndOfFrame _endOfFrame = new();
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void Install() => new GameObject("Session recording").AddComponent<MatchRecorder>();
+
+    private IEnumerator Start()
+    {
+        _directory = Environment.GetEnvironmentVariable("WHOWHOO_FRAMES");
+        Application.runInBackground = true;
+        Time.captureFramerate = 12;
+        yield return null;
+        var game = FindAnyObjectByType<GameController>();
+        var board = FindAnyObjectByType<BoardView>();
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+        // Keep OS cursor motion from taking over Pointer.current in this standalone recording.
+        foreach (var device in InputSystem.devices)
+            if (device is Pointer && device.native) InputSystem.DisableDevice(device);
+        var mouse = InputSystem.AddDevice<Mouse>();
+        mouse.MakeCurrent();
+        StartCoroutine(RecordFrames());
+        var sequence = DemoMatchSequence.Run(game, board, Camera.main, mouse, name => _checkpoint = name, true);
+        // Unroll nested iterators so assertion failures also reach the calling script.
+        var stack = new Stack<IEnumerator>();
+        stack.Push(sequence);
+        while (stack.Count > 0)
+        {
+            var current = stack.Peek();
+            object value = null;
+            try
+            {
+                if (!current.MoveNext()) { stack.Pop(); continue; }
+                value = current.Current;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                Application.Quit(1);
+                yield break;
+            }
+            if (value is IEnumerator nested) stack.Push(nested);
+            else yield return value;
+        }
+        _finished = true;
+        yield return _endOfFrame;
+        Application.Quit(0);
+    }
+
+    private IEnumerator RecordFrames()
+    {
+        while (!_finished)
+        {
+            yield return _endOfFrame;
+            var image = ScreenCapture.CaptureScreenshotAsTexture();
+            var png = image.EncodeToPNG();
+            Destroy(image);
+            File.WriteAllBytes(Path.Combine(_directory, $"frame-{_frame:D5}.png"), png);
+            if (_checkpoint != null)
+            {
+                File.WriteAllBytes(Path.Combine(_directory, _checkpoint + ".png"), png);
+                File.AppendAllText(Path.Combine(_directory, "timeline.tsv"), $"{_frame}\t{_checkpoint}\n");
+                _checkpoint = null;
+            }
+            _frame++;
+        }
+    }
+}

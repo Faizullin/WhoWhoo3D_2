@@ -41,9 +41,10 @@ public sealed class PlayerTurnPhase : IGamePhase
             return;
         }
 
+        _game.ShowTurnHints(!IsAiTurn);
         Debug.Log(IsAiTurn
             ? $"--- {_game.ActivePlayer.Id}'s turn (AI thinking) ---"
-            : $"--- {_game.ActivePlayer.Id}'s turn (click a white tile) ---");
+            : $"--- {_game.ActivePlayer.Id}'s turn (click a lit tile) ---");
     }
 
     public void Tick(float deltaTime)
@@ -80,7 +81,7 @@ public sealed class PlayerTurnPhase : IGamePhase
         IsComplete = true;
     }
 
-    public void Exit() { }
+    public void Exit() => _game.ShowTurnHints(false);
 
     public IGamePhase NextPhase() => new BoardWavePhase(_game);
 }

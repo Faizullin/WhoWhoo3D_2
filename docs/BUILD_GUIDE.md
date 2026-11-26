@@ -1,6 +1,6 @@
 # WhoWhoo3D_2 — Build From Scratch
 
-> Step-by-step manual for building the project from an empty workspace.
+> Step-by-step manual for building the project from an empty workspace. For the current playable build, see the [gameplay report](reports/README.md).
 >
 > This guide is **opinionated and concrete** — exact paths, exact package names, exact file order. Deviate only when you understand why.
 >
@@ -430,7 +430,7 @@ Built and tested, then deferred: the current goal is local player-versus-player.
 
 - [x] Edit Mode: turn loop, click handling, AI move selection, AI-vs-AI game terminates
 - [ ] Manually click tiles in the Editor, end turn, watch wave fire
-- [ ] PlayMode test: scripted scenario — load map, simulate player clicks, assert end state
+- [x] PlayMode test: scripted scenario — load map, simulate player clicks, assert end state
 
 ---
 
@@ -463,42 +463,38 @@ Three rules this stage has to keep:
 
 ## Stage 9 — Make the Game Legible (4-5 days)
 
-**Goal:** a person who has never seen the game can sit down and play it. Right now the only
-way to know whose turn it is, or which tiles you may click, is the Console.
+A first-time player should be able to identify a legal tile, follow a wave and start another match. The [gameplay report](reports/README.md) shows these stages in the current demo.
 
 ### 9.1 Legal-move highlighting — do this first
 
-With ~40 white tiles on screen and the rule "one enemy tile locks the whole face", the
-player has no way to see what is clickable. This is not polish; without it the game is
-unplayable by anyone who has not read WAVE_SPEC.
+One enemy tile locks the whole face. The view uses the same claim rule as the input handler and suppresses live hints during wave playback, pause and history review.
 
-- [ ] Tint or outline slots where `BoardActions.CanClaim(board, slot, activePlayer)` is true
-- [ ] Dim faces locked by another player
-- [ ] Hover feedback on the slot under the pointer
+- [x] Tint or outline slots where `BoardActions.CanClaim(board, slot, activePlayer)` is true
+- [x] Dim the unclaimed tiles on faces locked by another player
+- [x] Hover feedback on the slot under the pointer
 - [ ] Show which face is one tile from expanding — the key tactical read
 
 ### 9.2 HUD
 
 In `_Project/Runtime/UI/HUD/`:
 
-- [ ] Turn banner: whose turn, in their colour
-- [ ] Per-player tile count (`BoardActions.ScoreFor`)
-- [ ] Wave indicator while `BoardWavePhase` is animating
+- [x] Show the turn number, active player and player colors on the scoreboard
+- [x] Per-player tile count (`BoardActions.ScoreFor`)
+- [x] Wave indicator while `BoardWavePhase` is animating
 
 ### 9.3 Victory and restart
 
-- [ ] Victory screen — `GameController.IsGameOver` / `Winner` are already exposed
-- [ ] Restart: `InitializeWithBoard` already resets game-over state, so this is a button
-- [ ] Quit / back to menu
+- [x] Show the winner or draw in the results panel
+- [x] Play again with the selected map, player count and opening ownership
+- [x] Return to local match setup from the results panel
 
 ### 9.4 Local player setup
 
-Players are currently inferred from whichever tiles the map seeds. For a hot-seat game the
-player count must be a choice, not a map artifact.
+The local match setup in Demo4x4 offers the installed maps and two, three or four players. Starting tiles belonging to absent players become available to claim.
 
-- [ ] Choose 2-4 players before starting
+- [x] Choose 2-4 players before starting
 - [ ] Assign each a start position on the board
-- [ ] Colour legend so players know which colour they are
+- [x] Colour legend so players know which colour they are
 
 ### 9.5 EventBus
 

@@ -95,6 +95,7 @@ public static class GameSceneBuilder
 
         CreateLighting();
         var camera = CreateCamera(spec.BoardSize);
+        camera.fieldOfView = 44f;
         var boardView = CreateBoard(cubePrefab);
         CreateGameObjects(boardView, camera, spec);
 
@@ -161,11 +162,14 @@ public static class GameSceneBuilder
         var animator = go.AddComponent<WaveAnimator>();
         var input = go.AddComponent<PlayerInputHandler>();
         go.AddComponent<ScoreboardView>();
-        go.AddComponent<TimelineView>();
+        var timeline = new SerializedObject(go.AddComponent<TimelineView>());
+        timeline.FindProperty("visible").boolValue = false;
+        timeline.ApplyModifiedPropertiesWithoutUndo();
 
         var controllerSo = new SerializedObject(controller);
         controllerSo.FindProperty("boardView").objectReferenceValue = boardView;
         controllerSo.FindProperty("waveAnimator").objectReferenceValue = animator;
+        controllerSo.FindProperty("showSetupOnStart").boolValue = true;
         controllerSo.FindProperty("mapFileName").stringValue = spec.MapFileName;
         controllerSo.FindProperty("playerCount").intValue = spec.PlayerCount;
         controllerSo.FindProperty("enableAi").boolValue = false;

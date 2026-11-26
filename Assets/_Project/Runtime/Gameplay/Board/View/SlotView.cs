@@ -27,6 +27,40 @@ public sealed class SlotView : MonoBehaviour
     /// <summary>Presentation override used by WaveAnimator; null means "follow the model".</summary>
     private PlayerId? _displayOverride;
 
+    private bool _locked;
+    private GameObject _hoverOutline;
+    public bool IsClaimHighlighted { get; private set; }
+
+    public void SetTurnHint(bool legal, bool locked)
+    {
+        if (IsClaimHighlighted == legal && _locked == locked) return;
+        IsClaimHighlighted = legal;
+        _locked = locked;
+        if (!legal) SetHovered(false);
+        Refresh();
+    }
+
+    public void SetHovered(bool hovered)
+    {
+        bool show = hovered && IsClaimHighlighted;
+        if (show && _hoverOutline == null)
+        {
+            _hoverOutline = new GameObject("Hover outline");
+            _hoverOutline.transform.SetParent(transform, false);
+            _hoverOutline.transform.localPosition = Vector3.down * 0.16f;
+            _hoverOutline.transform.localScale = new Vector3(1.28f, 0.6f, 1.28f);
+            _hoverOutline.AddComponent<MeshFilter>().sharedMesh = _renderer.GetComponent<MeshFilter>().sharedMesh;
+            var rim = _hoverOutline.AddComponent<MeshRenderer>();
+            rim.sharedMaterial = SharedMaterial();
+            var gold = new MaterialPropertyBlock();
+            gold.SetColor(BaseColorId, new Color(1f, 0.7f, 0.08f));
+            gold.SetColor(ColorId, new Color(1f, 0.7f, 0.08f));
+            rim.SetPropertyBlock(gold);
+        }
+        if (_hoverOutline != null && _hoverOutline.activeSelf != show)
+            _hoverOutline.SetActive(show);
+    }
+
     public SlotId SlotId { get; private set; }
 
     public void Init(Slot slot, int face, int edge)
@@ -82,7 +116,16 @@ public sealed class SlotView : MonoBehaviour
         _renderer.SetPropertyBlock(_block);
     }
 
-    private void Render(PlayerId owner) => ShowColor(ColorFor(owner));
+    private void Render(PlayerId owner)
+    {
+        var color = ColorFor(owner);
+        if (!_displayOverride.HasValue && owner.IsNone)
+        {
+            if (IsClaimHighlighted) color = new Color(0.55f, 1f, 0.92f);
+            else if (_locked) color = new Color(0.32f, 0.35f, 0.38f);
+        }
+        ShowColor(color);
+    }
 
     /// <summary>The one material every tile shares. Colour comes from a property block.</summary>
     public static Material SharedMaterial() =>

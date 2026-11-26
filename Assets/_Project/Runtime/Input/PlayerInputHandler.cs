@@ -40,12 +40,34 @@ namespace WhoWhoo3D.Input
                 clickAction.action.Disable();
         }
 
+        private SlotView _hovered;
+        private IBoardInputPanel[] _panels;
+
+        private void Start() => _panels = GetComponents<IBoardInputPanel>();
+
         private void Update()
         {
-            if (WasClicked(out Vector2 screenPosition))
+            bool clicked = WasClicked(out var clickPosition);
+            Vector2 position = clicked ? clickPosition : GetPointerPosition();
+            bool enabled = gameController == null || gameController.AcceptsBoardInput;
+            var slot = enabled && !OverPanel(position) ? PickSlot(position) : null;
+            if (_hovered != slot && _hovered != null) _hovered.SetHovered(false);
+            _hovered = slot;
+            if (slot == null) return;
+
+            slot.SetHovered(true);
+            if (clicked)
             {
-                ProcessClick(screenPosition);
+                SlotClicked?.Invoke(slot.SlotId);
+                gameController?.OnSlotClicked(slot.SlotId);
             }
+        }
+
+        private bool OverPanel(Vector2 position)
+        {
+            foreach (var panel in _panels)
+                if (panel.CoversScreenPoint(position)) return true;
+            return false;
         }
 
         private bool WasClicked(out Vector2 screenPosition)
@@ -94,31 +116,12 @@ namespace WhoWhoo3D.Input
             return Vector2.zero;
         }
 
-        private void ProcessClick(Vector2 screenPosition)
+        private SlotView PickSlot(Vector2 screenPosition)
         {
-            if (inputCamera == null)
-            {
-                inputCamera = Camera.main;
-                if (inputCamera == null) return;
-            }
-
-            Ray ray = inputCamera.ScreenPointToRay(screenPosition);
-            if (Physics.Raycast(ray, out RaycastHit hit))
-            {
-                // Each tile carries its own collider, so a click resolves to an exact
-                // slot. The collider sits on the primitive child, hence the parent walk.
-                var slotView = hit.collider.GetComponent<SlotView>();
-                if (slotView == null)
-                    slotView = hit.collider.GetComponentInParent<SlotView>();
-
-                if (slotView != null)
-                {
-                    SlotClicked?.Invoke(slotView.SlotId);
-
-                    if (gameController != null)
-                        gameController.OnSlotClicked(slotView.SlotId);
-                }
-            }
+            if (inputCamera == null) inputCamera = Camera.main;
+            if (inputCamera == null) return null;
+            var ray = inputCamera.ScreenPointToRay(screenPosition);
+            return Physics.Raycast(ray, out var hit) ? hit.collider.GetComponentInParent<SlotView>() : null;
         }
     }
 }

@@ -1,13 +1,6 @@
 # WhoWhoo3D_2 — Project Handoff
 
-> Written: 2026-05-24. Updated: 2026-09-07. Describes what the project is, how it is
-> structured, and what has been built so far.
->
-> **Verification status:** everything below through Stage 7.5 compiles cleanly (Gameplay,
-> Input and the new Edit Mode tests were compiled against the Unity 6000.4.5f1 reference
-> assemblies). The test suite has **not** been executed in the Unity Test Runner since
-> Stage 6 — open the project in Unity and run Edit Mode before treating the counts below
-> as green.
+The September 2026 notes below record the earlier architecture and test inventory. The current local match, verification counts, video and milestone screenshots are in the [gameplay report](reports/README.md).
 
 ---
 

@@ -119,51 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!115 &48505671
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: TimelineView
-  m_Namespace: WhoWhoo3D.UI.Debugging
-  m_AssemblyName: WhoWhoo3D.UI
---- !u!115 &318785108
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: BoardView
-  m_Namespace: WhoWhoo3D.Gameplay.Board.View
-  m_AssemblyName: WhoWhoo3D.Gameplay
---- !u!115 &819831144
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: WaveAnimator
-  m_Namespace: WhoWhoo3D.Gameplay.Wave
-  m_AssemblyName: WhoWhoo3D.Gameplay
 --- !u!1 &1065400454
 GameObject:
   m_ObjectHideFlags: 0
@@ -261,21 +216,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!115 &1437720007
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: ScoreboardView
-  m_Namespace: WhoWhoo3D.UI.HUD
-  m_AssemblyName: WhoWhoo3D.UI
 --- !u!1 &1653310302
 GameObject:
   m_ObjectHideFlags: 0
@@ -327,7 +267,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 44
   orthographic: 0
   orthographic size: 5
   m_Depth: 0
@@ -368,21 +308,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!115 &1809390929
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: GameController
-  m_Namespace: WhoWhoo3D.Gameplay.Game
-  m_AssemblyName: WhoWhoo3D.Gameplay
 --- !u!1 &1834054473
 GameObject:
   m_ObjectHideFlags: 0
@@ -413,11 +338,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 1834054473}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 48505671}
+  m_Script: {fileID: 11500000, guid: 9453f462328034e82b62d8877b3c8442, type: 3}
   m_Name: 
   m_EditorClassIdentifier: WhoWhoo3D.UI::WhoWhoo3D.UI.Debugging.TimelineView
   gameController: {fileID: 0}
-  visible: 1
+  visible: 0
   width: 520
   bottomMargin: 20
   uiScale: 1
@@ -430,7 +355,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1834054473}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1437720007}
+  m_Script: {fileID: 11500000, guid: ca668fcb68689488b82ab47359393e33, type: 3}
   m_Name: 
   m_EditorClassIdentifier: WhoWhoo3D.UI::WhoWhoo3D.UI.HUD.ScoreboardView
   gameController: {fileID: 0}
@@ -473,7 +398,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1834054473}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 819831144}
+  m_Script: {fileID: 11500000, guid: 9dd0be86e056f4b4cac656f68c19a38c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: WhoWhoo3D.Gameplay::WhoWhoo3D.Gameplay.Wave.WaveAnimator
   boardView: {fileID: 1940412826}
@@ -490,12 +415,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1834054473}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1809390929}
+  m_Script: {fileID: 11500000, guid: 98da9bf6bd64743f0985f34de958eedd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: WhoWhoo3D.Gameplay::WhoWhoo3D.Gameplay.Game.GameController
   boardView: {fileID: 1940412826}
   waveAnimator: {fileID: 1834054477}
   mapFileName: demo4x4
+  showSetupOnStart: 1
   playerCount: 3
   enableAi: 0
   humanPlayerId: 1
@@ -541,7 +467,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1940412825}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 318785108}
+  m_Script: {fileID: 11500000, guid: 80f3bd2875eee994bbfd56643b5102bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: WhoWhoo3D.Gameplay::WhoWhoo3D.Gameplay.Board.View.BoardView
   cubePrefab: {fileID: 3894964034306785378, guid: 99af67aa0ee8c4d48be3cb9a9f0c1a88, type: 3}
