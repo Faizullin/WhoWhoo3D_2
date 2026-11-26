@@ -1,6 +1,6 @@
 # Gameplay backlog
 
-The [architecture milestones](ARCHITECTURE.md) describe the order of implementation. The [gameplay report](reports/README.md) covers the local match.
+The [gameplay roadmap](GAMEPLAY_ROADMAP.md) gives the implementation order and acceptance checks for the next four updates. The [gameplay report](reports/README.md) covers the local match.
 
 ## 1. Networking / Online Multiplayer
 
@@ -11,15 +11,15 @@ One player hosts and plays P1. Guests select an advertised room or enter an IPv4
 - [x] Wait for 2–4 seats, restore dropped guests from a snapshot and synchronize rematches.
 - [x] Compare independent boards after every accepted claim and verify standalone host and guest results.
 - [x] Discover rooms on the LAN. Advertise room name, protocol version and available seats. Remove expired listings and keep direct joining available.
-- [ ] Exercise discovery and direct joining across separate network interfaces in automation.
+- [x] Exercise discovery and direct joining across separate virtual network interfaces, including a guest that drops UDP discovery. [Recorded results](reports/LAN.md)
 
 ---
 
 ## 2. Abilities System
 
-**Status: NOT STARTED.** Scoped out of "basic game logic".
+Begin with one charge of Freeze after the vertical board and camera slice. Phase and turn manipulation are later balance experiments.
 
-- [ ] `AbilityDefinition` ScriptableObject: cost, cooldown, range, icon, executor type.
+- [ ] Define ability metadata and a charge-based inventory.
 - [ ] `IAbilityExecutor` + `AbilitySystem.Execute(player, ability, target)`.
 - [ ] `PlayerInventory` on `PlayerState`.
 - [ ] Ability bar in the HUD.
@@ -50,18 +50,16 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 
 **Status: Partial.**
 
-The current visuals are functional placeholders: primitive cubes, code-spawned slab tiles,
-and two IMGUI panels. That is enough to debug rules and no more. Interaction is the weaker
-half — you cannot tell what is clickable without reading WAVE_SPEC.
+The current board uses primitive cubes and code-spawned tiles. Mint highlights identify legal claims. The next readability task is making paired edges and wave paths legible across different heights.
 
 ### Mesh / visual
 - [ ] Replace `GameObject.CreatePrimitive` tiles with an authored mesh or prefab. Tiles are
-      spawned per slot (288 of them on Demo4x4), so this is a batching question too.
+      spawned per slot (48 on Demo4x4), so this is a batching question too.
 - [ ] A real cube prefab with proper materials, edge bevels, and a readable top surface.
 - [ ] Distinguish **face state** visually: free, held, one-tile-from-full, locked by an enemy.
       Right now a full face and a nearly-full face look identical.
 - [ ] Buildable/placeable item visuals — the piece the future map editor and abilities need.
-- [ ] Camera: orbit, zoom and framing that work for a 9×9 slab, not just two cubes.
+- [ ] Fit, orbit, pan and zoom the vertical demo using the loaded board bounds.
 
 ### UI interaction
 - [ ] Replace `ScoreboardView` and `TimelineView` IMGUI with uGUI/TextMeshPro.
@@ -103,7 +101,7 @@ Turn handoff and board readability also support online play and future target se
 
 ## 6. Ideas Not Committed To
 
-- Larger clusters and irregular shapes (the surface walk already supports any cube cluster).
+- Larger or irregular clusters beyond the planned stepped demo.
 - Sparse tile networks — maps where not every edge carries a tile pair. Supported by the
   model and validator today, but no map uses it and the gameplay effect is unexplored.
 - Tuning `ConquestTakesFace = false` (only the targeted slot flips, so contested faces

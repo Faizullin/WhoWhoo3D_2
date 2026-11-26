@@ -24,8 +24,8 @@ If a guest loses its connection, the room waits. Select **Reconnect** in the sam
 | --- | --- |
 | Local match | Map and player setup, click-to-claim, animated waves, scores, elimination, result and restart |
 | LAN | Discoverable player-hosted rooms for 2–4 seats, direct joining, turn validation, reconnect and rematch |
-| Verification | Unity rule tests, a saved-scene pointer test, TCP Play Mode tests and a two-process macOS gameplay report |
+| Verification | Unity rule tests, a saved-scene pointer test, TCP Play Mode tests, a two-process macOS gameplay report, and [isolated Linux LAN tests](docs/reports/LAN.md) |
 | Map editor | Separate authoring demo with place, erase, paint, save and load |
-| Next implementation | Automate discovery checks between separate network interfaces, including direct joining when broadcasts are blocked. See the [architecture](docs/ARCHITECTURE.md). |
+| Next implementation | Build a stepped 6×6 demo with orbit, pan and zoom. Then add an ability inventory, redesign the adaptive HUD and polish wave animation. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
 
 The capture command and its requirements are in the [gameplay report](docs/reports/README.md). Board formats and expansion rules are in the [map schema](docs/MAP_SCHEMA.md) and [wave specification](docs/WAVE_SPEC.md).

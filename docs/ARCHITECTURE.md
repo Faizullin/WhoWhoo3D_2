@@ -165,6 +165,6 @@ The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery
 
 The discovery tests join a room by its advertised port, track changing seat counts, expire filled and closed rooms, and filter incompatible announcements. The standalone report captures the join screen before the guest selects the discovered room.
 
-Next, run discovery between separate network interfaces in automation. Repeat with UDP broadcast blocked and confirm the guest can still finish the match using the direct TCP address.
+Separate-interface and blocked-UDP verification runs through the Linux test player. The next feature slice pairs a stepped map with a local camera rig, followed by deterministic abilities, an adaptive HUD and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 
 The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).

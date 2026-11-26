@@ -173,6 +173,7 @@ def main():
                    "![Room found on the Join LAN screen](screens/lan-room-browser.png)", "",
                    "![Guest taking a turn](screens/lan-guest-turn.png)", "",
                    "![Result on the host](screens/lan-host-result.png)", ""]
+        report += ["[Separate-interface and blocked-discovery checks](LAN.md)", ""]
         report += ["## Refresh", "", "On a graphics-capable macOS desktop with the pinned Unity editor, Mac build support, "
                    "Python 3, FFmpeg and ffprobe installed, run the following from the repo root.", "",
                    "```sh", "python3 scripts/report.py", "```", "",

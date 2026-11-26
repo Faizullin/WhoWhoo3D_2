@@ -77,6 +77,29 @@ public class BoardBuilderTests
     }
 
     [Test]
+    public void StepConnectsTheTreadToTheExposedRiserInEveryOrientation()
+    {
+        for (int face = 0; face < 6; face++)
+        foreach (int toward in CubeGeometry.EdgeNeighbours(face))
+        {
+            var start = new Coord(0, 0, 0);
+            var middle = start.Step(CubeGeometry.FaceStep(toward));
+            var end = middle.Step(CubeGeometry.FaceStep(face));
+            var builder = new BoardBuilder();
+            foreach (var coord in new[] { start, middle, end }) builder.AddCube(coord);
+            var board = builder.Build();
+            var tread = new SlotId(new SideId(BoardBuilder.IdFor(start), face), CubeGeometry.EdgeIndexOf(face, toward));
+            int riserFace = CubeGeometry.OppositeFace(toward);
+            var riser = new SlotId(new SideId(BoardBuilder.IdFor(end), riserFace),
+                CubeGeometry.EdgeIndexOf(riserFace, CubeGeometry.OppositeFace(face)));
+            Assert.That(board.GetSlot(tread)?.Partner, Is.EqualTo(riser));
+            Assert.That(board.GetSlot(riser)?.Partner, Is.EqualTo(tread));
+            Assert.That(SlotCount(board), Is.EqualTo(14 * 4));
+            Assert.That(builder.Build(f => f == face).GetSlot(tread), Is.Null);
+        }
+    }
+
+    [Test]
     public void FilteringNeverLeavesALoneSlot()
     {
         // A pair needs both ends to pass the filter, which is what stops a filtered board

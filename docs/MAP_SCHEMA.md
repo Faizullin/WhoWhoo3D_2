@@ -113,8 +113,10 @@ For an exposed face `F` of cell `C`, and edge `e` whose neighbouring face is `G`
 
 - **`G` is exposed on `C`** — pair around this cube's own corner:
   partner = `(C, G, edgeIndexOf(G, F))`
-- **`G` is interior**, joined to cell `D` — pair across the seam onto `D`'s same-facing face:
+- **`G` joins cell `D` and `D.F` is exposed.** Cross the flat seam.
   partner = `(D, F, edgeIndexOf(F, opposite(G)))`
+- **`D.F` is buried against cell `E`.** Turn the inside corner onto the riser.
+  partner = `(E, opposite(G), edgeIndexOf(opposite(G), opposite(F)))`
 
 Every edge of the exposed surface yields exactly one reciprocal pair, so a fully-wired
 cluster gives each exposed face exactly 4 slots. Sparse maps are fine — just omit pairs,

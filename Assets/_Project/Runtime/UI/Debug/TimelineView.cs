@@ -26,7 +26,6 @@ namespace WhoWhoo3D.UI.Debugging
         [Range(0.5f, 4f)]
         [SerializeField] private float uiScale = 1f;
 
-        private const float ReferenceHeight = 900f;
         private const float PanelHeight = 108f;
 
         private Rect _panelPixels;
@@ -69,28 +68,27 @@ namespace WhoWhoo3D.UI.Debugging
 
             EnsureStyles();
 
-            float scale = Mathf.Max(1f, Screen.height / ReferenceHeight) * uiScale;
+            var viewport = new HudViewport(Screen.safeArea, Screen.height, uiScale);
             var previous = GUI.matrix;
-            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, Vector3.one * scale);
+            GUI.matrix = viewport.Matrix;
 
-            float logicalWidth = Screen.width / scale;
-            float logicalHeight = Screen.height / scale;
-            var area = new Rect((logicalWidth - width) * 0.5f,
-                                logicalHeight - PanelHeight - bottomMargin,
-                                width, PanelHeight);
-
-            _panelPixels = new Rect(area.position * scale, area.size * scale);
+            float panelWidth = Mathf.Min(width, viewport.Size.x - 16);
+            bool twoRows = panelWidth < 610f;
+            float height = twoRows ? PanelHeight + 48 : PanelHeight;
+            var area = new Rect((viewport.Size.x - panelWidth) / 2, viewport.Size.y - height - bottomMargin,
+                panelWidth, height);
+            _panelPixels = viewport.Pixels(area);
             GUILayout.BeginArea(area, GUIContent.none);
-            GUI.DrawTexture(new Rect(0, 0, width, PanelHeight), _panel, ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0, 0, panelWidth, height), _panel, ScaleMode.StretchToFill);
 
-            DrawControls();
+            DrawControls(twoRows);
             DrawStatus();
 
             GUILayout.EndArea();
             GUI.matrix = previous;
         }
 
-        private void DrawControls()
+        private void DrawControls(bool twoRows)
         {
             var history = gameController.History;
             var animator = gameController.WaveAnimator;
@@ -113,11 +111,16 @@ namespace WhoWhoo3D.UI.Debugging
             if (ActionButton(paused ? "Resume" : "Pause", enabled: true, 96f, highlighted: paused))
                 gameController.SetPaused(!paused);
 
+            if (twoRows)
+            {
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(12f);
+            }
             bool canStepWave = animator != null && animator.IsPlaying;
             if (ActionButton("Step wave", canStepWave, 110f))
                 animator.StepOnce();
 
-            GUILayout.FlexibleSpace();
 
             // Highlighted while reviewing: getting back to the live game is what you want.
             if (ActionButton("To present", !history.IsAtPresent, 112f, highlighted: reviewing))
@@ -135,7 +138,7 @@ namespace WhoWhoo3D.UI.Debugging
         /// the alpha, which is far too subtle on a dark panel — so an unavailable button is
         /// also explicitly dimmed, an important one is tinted, and a destructive one is red.
         /// </summary>
-        private bool ActionButton(string label, bool enabled, float width,
+        private bool ActionButton(string label, bool enabled, float maxWidth,
                                   bool highlighted = false, bool destructive = false)
         {
             bool previousEnabled = GUI.enabled;
@@ -164,7 +167,7 @@ namespace WhoWhoo3D.UI.Debugging
                 GUI.contentColor = Color.white;
             }
 
-            bool clicked = GUILayout.Button(label, _button, GUILayout.Width(width), GUILayout.Height(34f));
+            bool clicked = GUILayout.Button(label, _button, GUILayout.MinWidth(0f), GUILayout.MaxWidth(maxWidth), GUILayout.ExpandWidth(true), GUILayout.Height(34f));
 
             GUI.enabled = previousEnabled;
             GUI.backgroundColor = previousBackground;

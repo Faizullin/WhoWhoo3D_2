@@ -131,7 +131,7 @@ public sealed class BoardBuilder
     /// For an exposed face F and one of its edges leading to face G:
     /// <list type="bullet">
     /// <item>G exposed on the same cube — the pair folds around that cube's own corner.</item>
-    /// <item>G buried against cube D — the pair crosses the seam onto D's same-facing face.</item>
+    /// <item>G buried against cube D — cross the flat seam, or turn up the riser if D is covered.</item>
     /// </list>
     /// A pair is only created when both ends pass <paramref name="faceFilter"/>, which is
     /// what keeps a filtered board free of lone slots.
@@ -185,7 +185,17 @@ public sealed class BoardBuilder
         if (!_cubes.Contains(other)) return false;
 
         var otherCell = board.GetCell(IdFor(other));
-        if (otherCell.GetSide(face).IsInterior || !faceFilter(face)) return false;
+        if (otherCell.GetSide(face).IsInterior)
+        {
+            // Three cubes meet at a concave edge. Pair the tread with the exposed riser.
+            var upper = other.Step(CubeGeometry.FaceStep(face));
+            int riser = CubeGeometry.OppositeFace(neighbourFace);
+            if (!faceFilter(riser)) return false;
+            partner = new SlotId(new SideId(IdFor(upper), riser),
+                CubeGeometry.EdgeIndexOf(riser, CubeGeometry.OppositeFace(face)));
+            return true;
+        }
+        if (!faceFilter(face)) return false;
 
         partner = new SlotId(
             new SideId(otherCell.Id, face),

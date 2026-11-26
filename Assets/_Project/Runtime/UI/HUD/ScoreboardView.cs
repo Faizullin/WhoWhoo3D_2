@@ -29,13 +29,6 @@ namespace WhoWhoo3D.UI.HUD
         [Range(0.5f, 4f)]
         [SerializeField] private float uiScale = 1f;
 
-        /// <summary>
-        /// Layout is authored against this height and scaled to whatever the screen
-        /// actually is, so the panel keeps its proportions on a 4K or Retina display
-        /// instead of shrinking into the corner.
-        /// </summary>
-        private const float ReferenceHeight = 900f;
-
         private const float RowHeight = 30f;
         private const float SwatchSize = 18f;
 
@@ -87,27 +80,27 @@ namespace WhoWhoo3D.UI.HUD
 
             // IMGUI works in raw pixels, so on a high-DPI screen everything renders tiny.
             // Scale the whole GUI and lay out in logical units instead.
-            float scale = Mathf.Max(1f, Screen.height / ReferenceHeight) * uiScale;
+            var viewport = new HudViewport(Screen.safeArea, Screen.height, uiScale);
             var previousMatrix = GUI.matrix;
-            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, Vector3.one * scale);
+            GUI.matrix = viewport.Matrix;
 
-            float logicalWidth = Screen.width / scale;
-            float logicalHeight = Screen.height / scale;
+            float logicalWidth = viewport.Size.x;
             if (gameController.InSetup || _room.InLobby)
             {
-                DrawSetup(logicalWidth, logicalHeight, scale);
+                DrawSetup(viewport);
                 GUI.matrix = previousMatrix;
                 return;
             }
             int players = gameController.Roster.Players.Count;
             bool inRoom = _session.State == LanState.Playing;
             float height = 34f + players * RowHeight + (gameController.IsGameOver || inRoom ? 112f : 54f);
-            float x = corner == Corner.TopLeft ? margin.x : logicalWidth - width - margin.x;
+            float panelWidth = Mathf.Min(width, logicalWidth - 2 * margin.x);
+            float x = corner == Corner.TopLeft ? margin.x : logicalWidth - panelWidth - margin.x;
 
-            var panel = new Rect(x, margin.y, width, height);
-            _panelPixels = new Rect(panel.position * scale, panel.size * scale);
+            var panel = new Rect(x, margin.y, panelWidth, height);
+            _panelPixels = viewport.Pixels(panel);
             GUILayout.BeginArea(panel, GUIContent.none);
-            GUI.DrawTexture(new Rect(0, 0, width, height), _panelTex, ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0, 0, panelWidth, height), _panelTex, ScaleMode.StretchToFill);
 
             GUILayout.Space(8f);
             GUILayout.Label(gameController.IsGameOver ? "MATCH RESULT" : $"TURN {gameController.TurnNumber}", _heading);
@@ -142,8 +135,10 @@ namespace WhoWhoo3D.UI.HUD
             GUI.matrix = previousMatrix;
         }
 
-        private void DrawSetup(float screenWidth, float screenHeight, float scale)
+        private void DrawSetup(HudViewport viewport)
         {
+            float screenWidth = viewport.Size.x;
+            float screenHeight = viewport.Size.y;
             if (_maps == null)
             {
                 _maps = MapLoader.ListMaps();
@@ -155,7 +150,7 @@ namespace WhoWhoo3D.UI.HUD
             bool lanSetup = _room.IsHosting || _room.IsJoining || _session.IsBrowsing;
             float height = Mathf.Min(screenHeight - 12, lanSetup ? 390 : 320);
             var panel = new Rect((screenWidth - w) / 2, (screenHeight - height) / 2, w, height);
-            _panelPixels = new Rect(panel.position * scale, panel.size * scale);
+            _panelPixels = viewport.Pixels(panel);
             GUI.DrawTexture(panel, _panelTex);
             GUILayout.BeginArea(new Rect(panel.x + 18, panel.y + 12, w - 36, panel.height - 20));
             GUILayout.Label(_room.InLobby ? "LAN room" : "Match setup", _title);
