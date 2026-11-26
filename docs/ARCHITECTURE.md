@@ -14,7 +14,7 @@
 2. **Assembly Definitions** — fast compile + enforced module boundaries.
 3. **ScriptableObjects for content data** — abilities, tile types, configs as assets so designers can author without code.
 4. **Event Bus is notification glue** — not the spine. Core gameplay holds explicit references.
-5. **One controller per concern** — one `GameController`, one `BoardController`. No parallel near-duplicates.
+5. **One controller per concern** — `GameController` owns the match, and `BoardView` renders it.
 6. **No commented-out code** — git is the history.
 7. **Pure C# first, Unity second** — anything that *can* be tested without a scene running, *should* be.
 8. **Topology, not geometry** — the model speaks in `Cell` / `Side` / `Slot` graph terms and
@@ -25,103 +25,36 @@
 
 ---
 
-## Folder Structure
+## Runtime boundaries
 
-```
-Assets/
-├── StreamingAssets/                  ← bundled default maps
-│   └── Maps/
-│       └── sample.json
-└── _Project/
-    ├── Runtime/
-    │   ├── Domain/                   ← pure C#, no Unity refs
-    │   │   ├── Board/                ← BoardModel (with .Clone()), Cell, Side, TileStack
-    │   │   ├── Wave/                 ← WaveSimulator, WaveConfig
-    │   │   └── Maps/                 ← MapSerializer, MapDtos
-    │   ├── Core/
-    │   │   ├── Events/               ← EventBus
-    │   │   ├── Services/             ← service locator / DI seam
-    │   │   └── SceneFlow/            ← scene loader + fade
-    │   ├── Gameplay/
-    │   │   ├── Board/                ← BoardActions, CubeGeometry; View/ → BoardView, CellView, SlotView
-    │   │   ├── Wave/                 ← WavePlaybackPlan (pure), WaveAnimator
-    │   │   ├── Player/               ← PlayerState, PlayerRoster
-    │   │   ├── Ai/                   ← GreedyAiPlayer (deferred, see TODO.md)
-    │   │   ├── Ability/              ← AbilitySystem
-    │   │   ├── Turn/                 ← IGamePhase + the four phases
-    │   │   └── Game/                 ← GameController
-    │   ├── Data/                     ← ScriptableObject definitions
-    │   │   ├── Abilities/
-    │   │   ├── Maps/
-    │   │   └── GameConfig/
-    │   ├── Input/                    ← Input System actions + handlers
-    │   ├── UI/
-    │   │   ├── HUD/
-    │   │   ├── Menu/
-    │   │   ├── Inventory/
-    │   │   └── Common/
-    │   ├── Networking/               ← Stage 13 only (deferred)
-    │   ├── MapEditor/
-    │   └── Utils/
-    ├── Editor/
-    ├── Tests/
-    │   ├── EditMode/
-    │   └── PlayMode/
-    ├── Art/
-    ├── Audio/
-    ├── Prefabs/
-    ├── Scenes/
-    └── Settings/
-```
+Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-level module below has its own assembly definition.
 
-`_Project/` is optional — flat `Assets/Scripts/...` is also fine. See BUILD_GUIDE for the discussion.
+| Module | Current responsibility |
+| --- | --- |
+| Domain | Board topology (`Cell`, `Side`, `Slot`), map serialization, deterministic wave simulation, and the `Match/ClaimSlotCommand` value type. The assembly sets `noEngineReferences`. |
+| Gameplay | Match setup and orchestration in `Game/`, roster in `Player/`, phases in `Turn/`, and computer move selection in `Ai/`. Board views, wave playback, map loading and history also live here. |
+| Input | Resolves a pointer to a slot and submits a local action to the controller. |
+| UI | Match setup, scoreboard, results and debug timeline. |
+| MapEditor | Map authoring and its HUD. The editor builds boards using the same `BoardBuilder` as the game tests. |
 
----
+`Core`, `Data` and `Utils` are assembly scaffolds. `Networking/` is reserved for the future transport. Unity scene builders live under `_Project/Editor`. Rule tests and the saved-scene match check live under `_Project/Tests/EditMode` and `PlayMode`.
 
-## Assembly Definitions
+## Code conventions
 
-Target Unity version: **Unity 6 LTS** (Universal 3D / URP). Project at `WhoWhoo3D_2/` is on `6000.4.5f1`.
+- Group files by feature and match their namespaces to the module and folder. Use the existing `CellId`, `SideId`, `SlotId` and `PlayerId` types at boundaries.
+- Use explicit imports and one public type per file. Pure C# types use file-scoped namespaces. Use block-scoped namespaces for scene-attached MonoBehaviours so Unity resolves their script assets consistently.
+- Keep a script's `.meta` file when moving it. Apply scene wiring changes to the saved scene and `GameSceneBuilder` together.
+- Keep domain logic free of Unity types. Use direct calls for ordered gameplay transitions and deterministic iteration for wave and AI results.
 
-| Asmdef | Deps | Notes |
-|---|---|---|
-| `WhoWhoo3D.Domain` | (none) | Pure C#, no `UnityEngine`. `BoardModel`, `WaveSimulator`, `MapSerializer` live here. |
-| `WhoWhoo3D.Core` | (none) | EventBus, services, scene flow. **Scaffold only — no sources yet.** |
-| `WhoWhoo3D.Data` | Core | ScriptableObjects, configs. **Scaffold only — no sources yet.** |
-| `WhoWhoo3D.Gameplay` | Domain, Core, Data | Views, controllers, phases, MonoBehaviours. |
-| `WhoWhoo3D.Input` | Core, Gameplay, Unity.InputSystem | |
-| `WhoWhoo3D.UI` | Core, Gameplay, Data, Unity.TextMeshPro | |
-| `WhoWhoo3D.MapEditor` | Domain, Core, Data | |
-| `WhoWhoo3D.Utils` | (none) | Math, helpers. |
-| `WhoWhoo3D.Tests.EditMode` | all runtime | |
-| `WhoWhoo3D.Tests.PlayMode` | all runtime | |
+## Match setup and claims
 
-`Core`, `Data`, `Utils`, `UI` and `MapEditor` currently have an `.asmdef` but no `.cs`
-files. Unity builds them as empty assemblies. Keep them only as long as the stage that
-fills them is near; an assembly with no sources is import cost with no boundary value.
+`MatchSetup` stores the map and an immutable ordered list of seat controllers. Seat one belongs to P1. `StartMatch(setup)` creates the board and roster. Restart reloads the map using the same setup. Existing serialized player-count and AI fields supply defaults for scenes and the local setup screen.
 
-**Why `Domain` is separate:** `BoardModel`, `WaveSimulator`, and `MapSerializer` all live there. They return `BoardModel` objects, so they must all be in the same or upstream assembly. If serializers were in `Data` and models in `Gameplay`, `Data` would need to reference `Gameplay` while `Gameplay` already references `Data` — a compile cycle. `Domain` breaks the cycle: zero dependencies, everything else depends on it.
+Pointer input checks that the active seat is human. Both the pointer handler and the computer player ultimately call `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number and slot. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
 
----
+Commands currently belong to a single running match on the Unity main thread. A future network adapter will bind each connection to a seat and match instance before forwarding a command.
 
-## Code Conventions
-
-Kept deliberately small, and enforced by review rather than tooling:
-
-- **File-scoped namespaces** everywhere (`namespace X;`). C# 10, so **every assembly needs a
-  `csc.rsp` containing `-langversion:latest`** — Unity 6 defaults to C# 9 and the failure is
-  a confusing parse error, not a clear message. Every asmdef has a sibling `csc.rsp`.
-- **Explicit `using` statements per file.** No `GlobalUsings.cs`.
-- **One public type per file**, named after the file.
-- **XML docs on anything non-obvious**, explaining *why* rather than restating the signature.
-- **No commented-out code.** Git remembers.
-- **`Domain` never references `UnityEngine`.** Enforced by `noEngineReferences: true`.
-- **Pure C# where possible**, even inside Gameplay: `BoardActions`, `GreedyAiPlayer`,
-  `WavePlaybackPlan`, `GameHistory` and `CubeGeometry` are all plain classes, which is why
-  they are unit-tested rather than played through.
-
----
-
-## Key Systems
+## Key systems
 
 ### 1. Phase / Turn State Machine
 
@@ -151,7 +84,7 @@ types — it just drains whatever is already complete. Two constraints keep this
 `AdvanceWhileComplete` is iterative and capped (`MaxPhaseChain`) so a pair of phases that
 complete each other cannot freeze the editor.
 
-### 2. Ability System
+### 2. Ability system (planned)
 
 `AbilityDefinition` ScriptableObject + `IAbilityExecutor`.
 
@@ -191,14 +124,14 @@ side and edge indices, per principle 8.
 
 `WaveAnimator` is presentation only. The simulator has already written the final state by
 the time playback starts, so the animator rewinds the *views* to the pre-wave state
-(`WavePlaybackPlan.InitialState`, `SideView.ShowStack`) and walks them forward one chain
+(`WavePlaybackPlan.InitialState`, `SlotView.ShowOwner`) and walks them forward one chain
 step at a time, then hands display back to the model. Skipping or interrupting an
 animation can therefore never desync the board. The timeline itself lives in
 `WavePlaybackPlan` — pure C#, no `UnityEngine` — so it is unit-tested rather than watched.
 
-### 4. Event Bus — notification glue, not the spine
+### 4. Event bus (planned)
 
-Used for **notifications** that cross subsystem boundaries: "turn ended", "tile captured", "player eliminated". Camera, UI, audio, analytics subscribe.
+The proposed bus would handle **notifications** that cross subsystem boundaries: "turn ended", "tile captured", "player eliminated". Camera, UI, audio, analytics subscribe.
 
 ```csharp
 EventBus.Publish(new TurnEndedEvent(playerId));
@@ -211,9 +144,9 @@ Rule of thumb: if subscriber order or completion matters, use a direct call. If 
 
 ### 5. Single GameController
 
-One file. Owns the phase machine. The only top-level orchestrator.
+`GameController` owns the phase machine and accepts match commands for all seats.
 
-### 6. AI Opponent — deferred
+### 6. AI opponent
 
 `GreedyAiPlayer` is built and tested but **off by default**: the current goal is a local
 player-versus-player game. See [TODO.md](TODO.md) §1.
@@ -225,20 +158,10 @@ Two properties are worth preserving whenever it is picked back up:
 - **It has no `UnityEngine` reference**, so move selection is unit-tested rather than
   watched.
 
-### 7. Multiplayer### 7. Multiplayer — command-based, not state-sync
+### 7. Next milestones
 
-**Deferred until the local game ships — see [TODO.md](TODO.md) §2.** The design is settled;
-recording it here so it is not re-litigated:
+1. Add Solo vs AI to match setup and construct a `MatchSetup` with one local human and the chosen computer opponents. Keep hot-seat available in the same scene.
+2. Run an in-memory host and client. Make authoritative turn advancement independent of animation timing, deliver ordered results and compare both boards and rosters after each claim.
+3. Add transport-backed host/join, seat assignment and reconnect from a host snapshot. The host validates commands using the same claim rules.
 
-- Client sends **commands** (intents): `MoveCommand`, `UseAbilityCommand`, `EndTurnCommand`.
-- Host runs the authoritative `GameController`, validates commands, mutates the model, and publishes **result events** (`TileCapturedEvent`, `WaveResolvedEvent`).
-- Clients re-apply the same deterministic transitions on result events, OR receive deltas only.
-
-Dramatically less bandwidth than syncing every cell as a `NetworkVariable`, and no risk of desync if the simulator is deterministic (which it is — no randomness).
-
----
-
-## Estimated Effort
-
-- **Singleplayer + map editor MVP:** ~6-8 weeks solo focused.
-- **Multiplayer addition:** +2-3 weeks.
+The latest recorded hot-seat run and its verification results are in the [gameplay report](reports/README.md).

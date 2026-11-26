@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Domain.Wave;
 using WhoWhoo3D.Gameplay.Ai;
 using WhoWhoo3D.Gameplay.Board;
@@ -28,8 +29,8 @@ namespace WhoWhoo3D.Gameplay.Game
         /// </summary>
         private const int MaxPhaseChain = 64;
 
-        public const int MinPlayers = 2;
-        public const int MaxPlayers = 4;
+        public const int MinPlayers = MatchSetup.MinPlayers;
+        public const int MaxPlayers = MatchSetup.MaxPlayers;
 
         [Header("Board")]
         [SerializeField] private BoardView boardView;
@@ -37,8 +38,9 @@ namespace WhoWhoo3D.Gameplay.Game
         [SerializeField] private string mapFileName = "sample";
         [SerializeField] private bool showSetupOnStart;
 
-        public string MapName => mapFileName;
-        public int PlayerCount => playerCount;
+        public MatchSetup Setup { get; private set; }
+        public string MapName => Setup?.MapName ?? mapFileName;
+        public int PlayerCount => Setup?.Seats.Count ?? playerCount;
         public bool InSetup { get; private set; }
         public bool AcceptsBoardInput => !InSetup && !IsGameOver && !IsPaused && !IsReviewingHistory
             && CurrentPhase is PlayerTurnPhase turn && !turn.IsAiTurn;
@@ -115,36 +117,47 @@ namespace WhoWhoo3D.Gameplay.Game
             ShowTurnHints(false);
         }
 
-        public void RestartMatch() => StartLocalMatch(mapFileName, playerCount);
+        public void RestartMatch() => StartMatch(Setup ?? ConfiguredSetup(mapFileName, playerCount));
 
-        public void StartLocalMatch(string map, int players)
+        public void StartLocalMatch(string map, int players) => StartMatch(ConfiguredSetup(map, players));
+
+        private MatchSetup ConfiguredSetup(string map, int players)
         {
-            var board = MapLoader.Load(map);
-            players = Mathf.Clamp(players, MinPlayers, MaxPlayers);
+            var seats = new SeatControl[Mathf.Clamp(players, MinPlayers, MaxPlayers)];
+            for (int i = 0; i < seats.Length; i++)
+                seats[i] = enableAi && i + 1 != humanPlayerId ? SeatControl.Computer : SeatControl.LocalHuman;
+            return new MatchSetup(map, seats);
+        }
+
+        public void StartMatch(MatchSetup setup)
+        {
+            if (setup == null) throw new ArgumentNullException(nameof(setup));
+            var board = MapLoader.Load(setup.MapName);
             foreach (var cell in board.Cells.Values)
                 foreach (var side in cell.ExposedSides)
                     foreach (var slot in side.Slots)
-                        if (slot.Owner.Value > players)
+                        if (slot.Owner.Value > setup.Seats.Count)
                             board.SetOwner(slot.Id, PlayerId.None);
-
-            mapFileName = map;
-            ConfigurePlayers(players);
 
             if (boardView == null)
                 boardView = FindAnyObjectByType<BoardView>();
             if (waveAnimator == null)
                 waveAnimator = FindAnyObjectByType<WaveAnimator>();
 
-            InitializeWithBoard(board, boardView);
-            Debug.Log($"Game initialized: {Roster.Players.Count} players on map '{mapFileName}'");
+            InitializeMatch(board, boardView, setup);
+            Debug.Log($"Game initialized: {Roster.Players.Count} players on map '{setup.MapName}'");
         }
 
         /// <summary>
         /// Initializes the controller with an explicit board and optional view.
         /// Primarily used for testing or custom map loading without file I/O.
         /// </summary>
-        public void InitializeWithBoard(BoardModel board, BoardView view = null)
+        public void InitializeWithBoard(BoardModel board, BoardView view = null) =>
+            InitializeMatch(board, view, ConfiguredSetup(mapFileName, playerCount));
+
+        private void InitializeMatch(BoardModel board, BoardView view, MatchSetup setup)
         {
+            Setup = setup;
             waveAnimator?.StopAndSnapToModel();
             InSetup = false;
             Board = board;
@@ -167,9 +180,6 @@ namespace WhoWhoo3D.Gameplay.Game
             SetPhase(new RoundStartPhase(this));
         }
 
-        /// <summary>
-        /// Overrides the inspector opponent settings. Call before InitializeWithBoard.
-        /// </summary>
         /// <summary>Sets how many people are playing. Call before InitializeWithBoard.</summary>
         public void ConfigurePlayers(int count)
         {
@@ -191,13 +201,13 @@ namespace WhoWhoo3D.Gameplay.Game
         /// </summary>
         private PlayerRoster BuildRoster()
         {
-            int count = Mathf.Clamp(playerCount, MinPlayers, MaxPlayers);
+            int count = Setup.Seats.Count;
 
             var states = new List<PlayerState>(count);
             for (int i = 1; i <= count; i++)
             {
                 var id = new PlayerId(i);
-                states.Add(new PlayerState(id) { IsAi = enableAi && i != humanPlayerId });
+                states.Add(new PlayerState(id) { IsAi = Setup.Seats[i - 1] == SeatControl.Computer });
             }
 
             return new PlayerRoster(states);
@@ -281,54 +291,32 @@ namespace WhoWhoo3D.Gameplay.Game
         /// <summary>True if the active player has at least one cell they can reinforce.</summary>
         public bool ActivePlayerHasMove() => BoardActions.HasLegalMove(Board, ActivePlayer.Id);
 
-        /// <summary>
-        /// Claims a white tile for the active player. Returns false when the tile is
-        /// already taken, or its face is held by someone else.
-        /// </summary>
-        public bool TryPlayerAction(SlotId slotId)
+        /// <summary>Local pointer entry point. AI turns generate their own commands.</summary>
+        public bool TryPlayerAction(SlotId slotId) =>
+            AcceptsBoardInput && TrySubmitClaim(new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, slotId));
+
+        public void OnSlotClicked(SlotId slotId) => TryPlayerAction(slotId);
+
+        /// <summary>Accepts at most one claim per turn. Called on the Unity main thread.</summary>
+        public bool TrySubmitClaim(ClaimSlotCommand command)
         {
-            var playerId = ActivePlayer.Id;
-
-            if (!BoardActions.CanClaim(Board, slotId, playerId))
-            {
-                Debug.Log($"{playerId} cannot claim {slotId} — click ignored");
+            if (InSetup || _gameOver || IsPaused || IsReviewingHistory ||
+                _currentPhase is not PlayerTurnPhase turn || turn.IsComplete ||
+                command.Actor != ActivePlayer.Id || command.TurnNumber != TurnNumber ||
+                !BoardActions.CanClaim(Board, command.Slot, command.Actor))
                 return false;
-            }
 
-            var before = Board.GetSlot(slotId).Owner;
-            Board.SetOwner(slotId, playerId);
+            turn.CompleteClaim();
+            Board.SetOwner(command.Slot, command.Actor);
             NotifyTurnPlayed();
-
             History.Record(new HistoryEntry(
-                HistoryKind.Claim, TurnNumber, playerId, $"P{playerId.Value} claimed {slotId}",
-                new[] { new SlotStateChange(slotId, before, playerId, SlotChangeCause.Claimed, Origin: null) }));
+                HistoryKind.Claim, TurnNumber, command.Actor, $"{command.Actor} claimed {command.Slot}",
+                new[] { new SlotStateChange(command.Slot, PlayerId.None, command.Actor, SlotChangeCause.Claimed, Origin: null) }));
 
             RefreshBoardView();
-            Debug.Log($"{playerId} claimed {slotId}");
+            Debug.Log($"{command.Actor} claimed {command.Slot}");
+            AdvanceWhileComplete();
             return true;
-        }
-
-        /// <summary>
-        /// Receives tile-click events from PlayerInputHandler or tests. Drives the phase
-        /// transition directly rather than waiting for the next Update, so a click
-        /// resolves within the same call — including in Edit Mode, where there is no
-        /// frame loop at all.
-        /// </summary>
-        public void OnSlotClicked(SlotId slotId)
-        {
-            if (InSetup || _gameOver || IsPaused) return;
-
-            if (IsReviewingHistory)
-            {
-                Debug.Log("Reviewing history — return to the present before playing.");
-                return;
-            }
-
-            if (_currentPhase is PlayerTurnPhase playerTurn)
-            {
-                playerTurn.HandleSlotClicked(slotId);
-                AdvanceWhileComplete();
-            }
         }
 
         // ── Presentation State ───────────────────────────────────────

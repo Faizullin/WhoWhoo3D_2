@@ -21,6 +21,23 @@ public static class DemoMatchSequence
         Require(game.InSetup, "The demo did not open match setup.");
         checkpoint("setup");
         yield return Hold(record ? 14 : 1);
+        if (!record)
+        {
+            var seats = new[] { SeatControl.Computer, SeatControl.LocalHuman, SeatControl.Computer };
+            game.StartMatch(new MatchSetup("demo4x4", seats));
+            seats[0] = SeatControl.LocalHuman;
+            game.ConfigureAi(false, 1);
+            game.RestartMatch();
+            Require(game.MapName == "demo4x4" && game.PlayerCount == 3 &&
+                game.Roster.Players.Select(p => p.IsAi).SequenceEqual(new[] { true, false, true }),
+                "Restart must preserve the selected map and the original controller for every seat.");
+            var target = BoardActions.LegalMoves(game.Board, game.ActivePlayer.Id)[0];
+            game.OnSlotClicked(target);
+            Require(game.History.Entries.Count == 0, "Local input took the computer's turn.");
+            game.Tick(1f);
+            Require(game.History.Entries.Count > 0 && game.History.Entries[0].Actor == new PlayerId(1),
+                "Computer seat did not submit a claim.");
+        }
         foreach (int count in record ? Array.Empty<int>() : new[] { 2, 4 })
         {
             game.StartLocalMatch("demo4x4", count);

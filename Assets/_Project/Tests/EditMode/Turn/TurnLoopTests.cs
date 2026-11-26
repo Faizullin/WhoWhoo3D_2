@@ -2,6 +2,7 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Game;
 using WhoWhoo3D.Gameplay.Turn;
 using WhoWhoo3D.Tests.EditMode.Support;
@@ -88,6 +89,77 @@ public class TurnLoopTests
         var taken = board.GetSide(new SideId(Cube, 0)).Slots.First(s => !s.IsNeutral).Id;
 
         Assert.IsFalse(_game.TryPlayerAction(taken));
+    }
+
+    [TestCase(2, 1)]
+    [TestCase(1, 0)]
+    [TestCase(1, 2)]
+    public void ClaimForAnotherPlayerOrTurnLeavesMatchUntouched(int actor, int turn)
+    {
+        var board = TwoPlayerBoard();
+        _game.InitializeWithBoard(board);
+        var target = FirstWhiteSlotOn(board, 0);
+        var command = new ClaimSlotCommand(new PlayerId(actor), turn, target);
+
+        Assert.IsFalse(_game.TrySubmitClaim(command));
+        Assert.IsTrue(board.GetSlot(target).IsNeutral);
+        Assert.AreEqual(P1, _game.ActivePlayer.Id);
+        Assert.AreEqual(1, _game.TurnNumber);
+        Assert.IsEmpty(_game.History.Entries);
+    }
+
+    [Test]
+    public void ReplayingAnAcceptedClaimCannotConsumeAnotherTurn()
+    {
+        _game.InitializeWithBoard(TwoPlayerBoard());
+        var command = new ClaimSlotCommand(P1, 1, FirstWhiteSlotOn(_game.Board, 0));
+        Assert.IsTrue(_game.TrySubmitClaim(command));
+        Assert.IsFalse(_game.TrySubmitClaim(command));
+        Assert.AreEqual(2, _game.TurnNumber);
+        Assert.AreEqual(P2, _game.ActivePlayer.Id);
+        Assert.AreEqual(1, _game.History.Entries.Count);
+
+        _game.OnSlotClicked(FirstWhiteSlotOn(_game.Board, 1));
+        var legalNow = FirstWhiteSlotOn(_game.Board, 0);
+        Assert.AreEqual(P1, _game.ActivePlayer.Id);
+        Assert.IsFalse(_game.TrySubmitClaim(new ClaimSlotCommand(P1, 1, legalNow)));
+        Assert.IsTrue(_game.Board.GetSlot(legalNow).IsNeutral);
+        Assert.AreEqual(3, _game.TurnNumber);
+        Assert.AreEqual(2, _game.History.Entries.Count);
+    }
+
+    [TestCase("missing-cell", 0, 0)]
+    [TestCase(null, 20, 0)]
+    [TestCase(null, 0, -1)]
+    public void UnknownClaimTargetIsRejected(string cellName, int side, int edge)
+    {
+        _game.InitializeWithBoard(TwoPlayerBoard());
+        var cell = cellName == null ? Cube : new CellId(cellName);
+        var slot = new SlotId(new SideId(cell, side), edge);
+        Assert.IsFalse(_game.TrySubmitClaim(new ClaimSlotCommand(P1, 1, slot)));
+        Assert.AreEqual(1, _game.TurnNumber);
+        Assert.IsEmpty(_game.History.Entries);
+    }
+
+    [Test]
+    public void ExplicitCommandsRespectPauseHistoryAndSetup()
+    {
+        _game.InitializeWithBoard(TwoPlayerBoard());
+        var first = new ClaimSlotCommand(P1, 1, FirstWhiteSlotOn(_game.Board, 0));
+        _game.SetPaused(true);
+        Assert.IsFalse(_game.TrySubmitClaim(first));
+        _game.SetPaused(false);
+        Assert.IsTrue(_game.TrySubmitClaim(first));
+
+        var second = new ClaimSlotCommand(P2, 2, FirstWhiteSlotOn(_game.Board, 1));
+        Assert.IsTrue(_game.StepHistoryBack());
+        Assert.IsFalse(_game.TrySubmitClaim(second));
+        _game.ReturnToPresent();
+        _game.OpenSetup();
+        Assert.IsFalse(_game.TrySubmitClaim(second));
+        Assert.AreEqual(2, _game.TurnNumber);
+        Assert.AreEqual(1, _game.History.Entries.Count);
+        Assert.IsTrue(_game.Board.GetSlot(second.Slot).IsNeutral);
     }
 
     [Test]

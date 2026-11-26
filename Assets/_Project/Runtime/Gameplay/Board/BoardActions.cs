@@ -29,10 +29,13 @@ public static class BoardActions
     {
         if (player.IsNone) return false;
 
-        var slot = board.GetSlot(slotId);
-        if (slot == null || !slot.IsNeutral) return false;
+        if (!board.Cells.TryGetValue(slotId.Side.Cell, out var cell)) return false;
+        int sideIndex = slotId.Side.LocalIndex;
+        if (sideIndex < 0 || sideIndex >= cell.Sides.Count) return false;
 
-        return CanSelectSide(board.GetSide(slotId.Side), player);
+        var side = cell.GetSide(sideIndex);
+        var slot = side.GetSlot(slotId.Edge);
+        return slot != null && slot.IsNeutral && CanSelectSide(side, player);
     }
 
     /// <summary>

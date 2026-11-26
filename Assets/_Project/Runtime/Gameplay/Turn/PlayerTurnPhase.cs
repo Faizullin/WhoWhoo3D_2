@@ -1,14 +1,12 @@
 using UnityEngine;
-using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Ai;
 using WhoWhoo3D.Gameplay.Game;
 
 namespace WhoWhoo3D.Gameplay.Turn;
 
 /// <summary>
-/// One player's action. A human turn waits for a click on a cell they own;
-/// an AI turn picks a cell itself after a short "thinking" delay.
-/// Either way the action is +1 tile on the first side the player owns there.
+/// Waits for a human claim or submits the computer's choice after its think delay.
 /// </summary>
 public sealed class PlayerTurnPhase : IGamePhase
 {
@@ -57,27 +55,18 @@ public sealed class PlayerTurnPhase : IGamePhase
         ExecuteAiMove();
     }
 
-    /// <summary>Called by GameController when a human clicks a tile.</summary>
-    public void HandleSlotClicked(SlotId slotId)
-    {
-        if (IsComplete || IsAiTurn) return;
-
-        if (_game.TryPlayerAction(slotId))
-            IsComplete = true;
-    }
+    internal void CompleteClaim() => IsComplete = true;
 
     private void ExecuteAiMove()
     {
-        if (_ai.TryChooseMove(_game.Board, _game.ActivePlayer.Id, out var slot) &&
-            _game.TryPlayerAction(slot))
+        var actor = _game.ActivePlayer.Id;
+        if (_ai.TryChooseMove(_game.Board, actor, out var slot))
         {
-            Debug.Log($"AI {_game.ActivePlayer.Id} claimed {slot}");
-        }
-        else
-        {
-            Debug.LogWarning($"AI {_game.ActivePlayer.Id} found no playable move — passing.");
+            _game.TrySubmitClaim(new ClaimSlotCommand(actor, _game.TurnNumber, slot));
+            return;
         }
 
+        _game.NotifyTurnSkipped();
         IsComplete = true;
     }
 
