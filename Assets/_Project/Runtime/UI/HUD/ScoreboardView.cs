@@ -152,7 +152,8 @@ namespace WhoWhoo3D.UI.HUD
             }
 
             float w = Mathf.Min(380, screenWidth - 24);
-            float height = Mathf.Min(screenHeight - 12, 320);
+            bool lanSetup = _room.IsHosting || _room.IsJoining || _session.IsBrowsing;
+            float height = Mathf.Min(screenHeight - 12, lanSetup ? 390 : 320);
             var panel = new Rect((screenWidth - w) / 2, (screenHeight - height) / 2, w, height);
             _panelPixels = new Rect(panel.position * scale, panel.size * scale);
             GUI.DrawTexture(panel, _panelTex);

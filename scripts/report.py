@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import uuid
 from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,6 +56,7 @@ def verify_suite(editor, project, work, platform, assembly):
 
 
 def record_lan(command, env, frames, work):
+    env = dict(env, WHOWHOO_ROOM_NAME="Demo " + uuid.uuid4().hex[:6])
     players = []
     deadline = time.monotonic() + 120
 
@@ -72,9 +74,7 @@ def record_lan(command, env, frames, work):
             log = work / f"lan-{role}.log"
             player = subprocess.Popen([*command, "-logFile", log], env=dict(env, WHOWHOO_LAN_ROLE=role))
             players.append((player, log))
-            if role == "host":
-                wait_for(["port"])
-        wait_for(["host.json", "guest.json", "lan-guest-turn.png", "lan-host-result.png", "lan-guest-result.png"])
+        wait_for(["lan-room-browser.png", "host.json", "guest.json", "lan-guest-turn.png", "lan-host-result.png", "lan-guest-result.png"])
         result = json.loads((frames / "host.json").read_text())
         if result != json.loads((frames / "guest.json").read_text()) or not result["finished"]:
             raise RuntimeError("Host and guest finished with different match states.")
@@ -143,7 +143,7 @@ def main():
         output = work / "report"
         screens = output / "screens"
         screens.mkdir(parents=True)
-        for name in [*SCENES, "lan-guest-turn", "lan-host-result"]:
+        for name in [*SCENES, "lan-room-browser", "lan-guest-turn", "lan-host-result"]:
             shutil.copy(frames / f"{name}.png", screens)
         movie = output / "demo4x4.mp4"
         run(["ffmpeg", "-loglevel", "error", "-framerate", str(FPS), "-i", frames / "frame-%05d.png",
@@ -168,8 +168,9 @@ def main():
             report += [f"## {title}", "", f"{times[name]:.1f} s", "", f"![{title}](screens/{name}.png)", ""]
         outcome = f"P{lan['winner']} won" if lan['winner'] else "a draw"
         report += ["## LAN match", "",
-                   f"Two macOS player processes connected over loopback. The host played P1 and the guest played P2. "
+                   f"Two macOS player processes ran on one computer. The guest discovered the named room over UDP and joined its advertised TCP port. The host played P1 and the guest played P2. "
                    f"Both finished on turn {lan['turn']} with the same board, roster and result ({outcome}).", "",
+                   "![Room found on the Join LAN screen](screens/lan-room-browser.png)", "",
                    "![Guest taking a turn](screens/lan-guest-turn.png)", "",
                    "![Result on the host](screens/lan-host-result.png)", ""]
         report += ["## Refresh", "", "On a graphics-capable macOS desktop with the pinned Unity editor, Mac build support, "

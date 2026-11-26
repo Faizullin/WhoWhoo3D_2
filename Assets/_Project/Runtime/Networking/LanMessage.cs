@@ -15,6 +15,7 @@ internal sealed class LanMessage
     public string map;
     public string digest;
     public string token;
+    public string roomId;
     public string text;
     public int round;
     public int sequence;

@@ -57,6 +57,10 @@ Pointer input checks the active seat before calling `GameController.TrySubmitCla
 
 `LanMatchSession` owns the listening socket and room on the host. P1 plays on the same computer. Each guest connects over IPv4 and receives one seat. Before play starts, each guest checks the protocol version and the digest of its installed map. TCP frames carry length-prefixed JSON. Socket processing and rule changes run on the Unity main thread.
 
+While the initial lobby has open seats, `LanRoomAdvertiser` sends one announcement per second on UDP port `47772`. Each announcement includes an ID for this room instance, the protocol version, the room name, map, free and total seats, and the actual TCP port. It goes to the local IPv4 broadcast addresses and loopback. Pending seat assignments count toward capacity. Rooms waiting for a disconnected player reserve that seat.
+
+`LanRoomBrowser` listens while **Join LAN** is open. It checks the protocol, reads the host address from the datagram source, and lists each room ID once even when several interfaces hear it. A listing expires after 3.5 seconds without an announcement. Selecting a listing sends its room ID in the TCP handshake so a replacement host on the same port cannot take that join. Both joining paths use `LanMatchSession.Join` and its seat and map checks.
+
 The host runs a separate `GameController` without a view or wave animator. A move must match its connection’s seat, the current round, the active player, the expected turn and a legal slot. The host assigns a sequence number to each accepted claim. Every visible board, including P1’s, processes the same claims in order and can finish its own animations between moves. Offline modes call the same rules directly.
 
 When a guest drops during play, the room pauses. The running guest keeps a private seat token in memory. Once all seats reconnect, the host sends a settled snapshot with ownership, active seat, turn, elimination state, skipped turns and result. Each view rebuilds from the agreed map and resumes at the host’s sequence number. Starting a rematch increments the round and resets the sequence. The room lasts for the lifetime of the host process. This transport is for a trusted local network.
@@ -159,7 +163,8 @@ The Edit Mode replay test runs the demo on two independent match instances. It c
 
 The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery, a three-player match through victory, and a synchronized rematch. The capture tool also plays a match between two independent desktop processes and compares their final snapshots.
 
-1. Add local room discovery to the join screen. Show room name and open seats, refresh when a room fills or closes, and retain direct IPv4 entry.
-2. Extend automated coverage to discovery across separate network interfaces and direct joining when broadcasts are unavailable.
+The discovery tests join a room by its advertised port, track changing seat counts, expire filled and closed rooms, and filter incompatible announcements. The standalone report captures the join screen before the guest selects the discovered room.
+
+Next, run discovery between separate network interfaces in automation. Repeat with UDP broadcast blocked and confirm the guest can still finish the match using the direct TCP address.
 
 The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).

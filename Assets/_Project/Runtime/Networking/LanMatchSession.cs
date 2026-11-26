@@ -20,7 +20,7 @@ namespace WhoWhoo3D.Networking
     public sealed class LanMatchSession : MonoBehaviour, IMatchConnection
     {
         public const int DefaultPort = 47771;
-        private const int ProtocolVersion = 1;
+        internal const int ProtocolVersion = 1;
 
         public LanState State { get; private set; }
         public bool IsHost => _listener != null;
@@ -31,6 +31,13 @@ namespace WhoWhoo3D.Networking
         public int Revision { get; private set; }
         public bool CanReconnect => State == LanState.Disconnected && _token != null;
 
+        public bool IsBrowsing => _browser != null;
+        public bool DiscoveryAvailable => _browser?.Available == true;
+        public IReadOnlyList<LanRoomListing> NearbyRooms => _browser?.Rooms ?? Array.Empty<LanRoomListing>();
+        public string RoomName { get; private set; }
+
+        private LanRoomBrowser _browser;
+        private LanRoomAdvertiser _advertiser;
         private GameController _view, _authority;
         private TcpListener _listener;
         private TcpClient _dial;
@@ -39,7 +46,7 @@ namespace WhoWhoo3D.Networking
         private readonly List<LanPeer> _peers = new();
         private readonly Queue<LanMessage> _deliveries = new();
         private string[] _tokens;
-        private string _token, _digest;
+        private string _token, _digest, _expectedRoomId;
         private MatchSetup _setup;
         private int _round, _hostRevision;
         private bool _pending;
@@ -47,9 +54,23 @@ namespace WhoWhoo3D.Networking
 
         public void Bind(GameController view) => _view = view;
 
-        public void Host(string map, int players, int port = DefaultPort)
+        public void BrowseRooms()
+        {
+            if (State == LanState.Closed) _browser ??= new LanRoomBrowser();
+        }
+
+        public void StopBrowsing()
+        {
+            _browser?.Dispose();
+            _browser = null;
+        }
+
+        public void Host(string map, int players, int port = DefaultPort, string roomName = null)
         {
             if (State != LanState.Closed) throw new InvalidOperationException("Leave the current room first.");
+            roomName = string.IsNullOrWhiteSpace(roomName) ? "Game room" : roomName.Trim();
+            if (!RoomAnnouncement.ValidLabel(roomName, RoomAnnouncement.MaxNameLength))
+                throw new ArgumentException("Enter a room name of up to 32 characters.");
             var setup = new MatchSetup(map, new SeatControl[players]);
             string digest = MapDigest(map);
             var listener = new TcpListener(IPAddress.Any, port);
@@ -59,6 +80,9 @@ namespace WhoWhoo3D.Networking
                 _listener = listener;
                 Port = ((IPEndPoint)listener.LocalEndpoint).Port;
                 Address = LocalAddresses();
+                StopBrowsing();
+                RoomName = roomName;
+                _advertiser = new LanRoomAdvertiser(roomName, map, players, Port);
                 _setup = setup;
                 _digest = digest;
                 _tokens = new string[players + 1];
@@ -69,12 +93,22 @@ namespace WhoWhoo3D.Networking
             catch { listener.Stop(); Close(); throw; }
         }
 
-        public void Join(string address, int port = DefaultPort)
+        public void Join(LanRoomListing room)
+        {
+            if (room == null) throw new ArgumentNullException(nameof(room));
+            Join(room.Address, room.Port, room.Id);
+        }
+
+        public void Join(string address, int port = DefaultPort) => Join(address, port, null);
+
+        private void Join(string address, int port, string expectedRoomId)
         {
             if (State != LanState.Closed) throw new InvalidOperationException("Leave the current room first.");
             if (!IPAddress.TryParse(address?.Trim(), out var ip) || ip.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Enter the host’s IPv4 address.");
             if (port < 1 || port > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+            StopBrowsing();
+            _expectedRoomId = expectedRoomId;
             Address = ip.ToString();
             Port = port;
             Dial();
@@ -115,7 +149,12 @@ namespace WhoWhoo3D.Networking
 
         private void Update()
         {
-            if (State == LanState.Closed || State == LanState.Disconnected) return;
+            if (State == LanState.Closed)
+            {
+                _browser?.Tick(Time.realtimeSinceStartup);
+                return;
+            }
+            if (State == LanState.Disconnected) return;
             try
             {
                 if (IsHost) PumpHost();
@@ -139,6 +178,8 @@ namespace WhoWhoo3D.Networking
 
         private void PumpHost()
         {
+            if (_round == 0)
+                _advertiser.Tick(Time.realtimeSinceStartup, _setup.Seats.Count - 1 - _peers.Count(p => p.Seat > 0));
             if (_listener.Pending())
             {
                 var tcp = _listener.AcceptTcpClient();
@@ -183,7 +224,7 @@ namespace WhoWhoo3D.Networking
                 _connecting = null;
                 _server = new LanPeer(_dial);
                 _dial = null;
-                _server.Send(new LanMessage { kind = "hello", version = ProtocolVersion, token = _token });
+                _server.Send(new LanMessage { kind = "hello", version = ProtocolVersion, token = _token, roomId = _expectedRoomId });
             }
             if (_server == null) return;
             for (int i = 0; i < 16; i++)
@@ -204,6 +245,8 @@ namespace WhoWhoo3D.Networking
             if (message.kind == "hello" && peer.Seat == 0)
             {
                 if (message.version != ProtocolVersion) throw new IOException("Incompatible game version.");
+                if (!string.IsNullOrEmpty(message.roomId) && message.roomId != _advertiser.Id)
+                    throw new IOException("That room has closed. Choose a room again.");
                 int seat = 0;
                 for (int i = 2; i <= _setup.Seats.Count; i++)
                 {
@@ -388,6 +431,10 @@ namespace WhoWhoo3D.Networking
                 peer.Dispose();
             }
             _peers.Clear();
+            StopBrowsing();
+            _advertiser?.Dispose();
+            _advertiser = null;
+            RoomName = null;
             _listener?.Stop();
             _listener = null;
             CloseClientSocket();
@@ -396,7 +443,7 @@ namespace WhoWhoo3D.Networking
             _deliveries.Clear();
             _setup = null;
             _tokens = null;
-            _token = null;
+            _token = _expectedRoomId = null;
             _pending = false;
             LocalSeat = _round = Revision = 0;
             if (_view != null && ReferenceEquals(_view.Connection, this))

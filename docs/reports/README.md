@@ -4,7 +4,7 @@
 
 Unity 6000.4.5f1 · Demo4x4 · three local players · **P1 won in 25 clicks**.
 
-**Tests passed** — Edit Mode (109), Play Mode (3). The match check compares every displayed legal move with the board rules, exercises map and player selection, and checks the opening state after restart.
+**Tests passed** — Edit Mode (109), Play Mode (5). The match check compares every displayed legal move with the board rules, exercises map and player selection, and checks the opening state after restart.
 
 The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera and tile colliders. Setup and restart use the same controller actions as the HUD buttons. Wave playback is accelerated for review. This run covers the local game on macOS. The LAN run below uses two copies of the same player.
 
@@ -46,7 +46,9 @@ The silent video records the game window at 12 fps. A seeded driver sends mouse 
 
 ## LAN match
 
-Two macOS player processes connected over loopback. The host played P1 and the guest played P2. Both finished on turn 23 with the same board, roster and result (P1 won).
+Two macOS player processes ran on one computer. The guest discovered the named room over UDP and joined its advertised TCP port. The host played P1 and the guest played P2. Both finished on turn 23 with the same board, roster and result (P1 won).
+
+![Room found on the Join LAN screen](screens/lan-room-browser.png)
 
 ![Guest taking a turn](screens/lan-guest-turn.png)
 

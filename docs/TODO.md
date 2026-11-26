@@ -4,13 +4,13 @@ The [architecture milestones](ARCHITECTURE.md) describe the order of implementat
 
 ## 1. Networking / Online Multiplayer
 
-One player hosts and plays P1. Guests connect by IPv4 address. The host owns the match for the lifetime of the room.
+One player hosts and plays P1. Guests select an advertised room or enter an IPv4 address. The host owns the match for the lifetime of the room.
 
 - [x] Bind each TCP connection to a seat and validate its claims.
 - [x] Deliver accepted turns in order to the host view and guests.
 - [x] Wait for 2–4 seats, restore dropped guests from a snapshot and synchronize rematches.
 - [x] Compare independent boards after every accepted claim and verify standalone host and guest results.
-- [ ] Discover rooms on the LAN. Advertise room name, protocol version and available seats. Remove expired listings and keep direct joining available.
+- [x] Discover rooms on the LAN. Advertise room name, protocol version and available seats. Remove expired listings and keep direct joining available.
 - [ ] Exercise discovery and direct joining across separate network interfaces in automation.
 
 ---

@@ -98,6 +98,79 @@ public class LanMatchTests
     }
 
     [UnityTest]
+    public IEnumerator BrowserTracksSeatsJoinsAndExpiresRooms()
+    {
+        var host = MakePlayer();
+        string name = "Room " + Guid.NewGuid().ToString("N").Substring(0, 8);
+        var browser = MakePlayer();
+        browser.BrowseRooms();
+        LanRoomListing Listing() => browser.NearbyRooms.SingleOrDefault(room => room.Name == name);
+
+        host.Host("demo4x4", 3, 0, name);
+        yield return Until(() => Listing()?.OpenSeats == 2);
+        Assert.That(Listing().Capacity, Is.EqualTo(3));
+        Assert.That(Listing().Port, Is.EqualTo(host.Port));
+        Assert.That(Listing().Map, Is.EqualTo("demo4x4"));
+        var guest = MakePlayer();
+        guest.Join(Listing());
+        yield return Until(() => Listing()?.OpenSeats == 1);
+        var lastGuest = MakePlayer();
+        lastGuest.Join(Listing());
+        yield return Until(() => host.State == LanState.Playing && lastGuest.LocalSeat == 3);
+        yield return Until(() => Listing() == null);
+
+        host.Leave();
+        host.Host("sample", 2, 0, name);
+        yield return Until(() => Listing()?.Map == "sample");
+        var previousRoom = Listing();
+        host.Leave();
+        yield return Until(() => Listing() == null);
+
+        host.Host("sample", 2, previousRoom.Port, name);
+        var staleGuest = MakePlayer();
+        staleGuest.Join(previousRoom);
+        yield return Until(() => staleGuest.State == LanState.Disconnected);
+        Assert.That(staleGuest.Status, Does.Contain("room has closed"));
+        Assert.That(host.State, Is.EqualTo(LanState.Lobby));
+        yield return Until(() => Listing() != null);
+        browser.Join(Listing());
+        yield return Until(() => browser.State == LanState.Playing);
+        Assert.That(browser.IsBrowsing, Is.False);
+        Assert.That(browser.NearbyRooms, Is.Empty);
+    }
+
+    [UnityTest]
+    public IEnumerator BrowserListsOnlyCompatibleAnnouncements()
+    {
+        var browser = MakePlayer();
+        browser.BrowseRooms();
+        yield return Until(() => browser.DiscoveryAvailable);
+        using var sender = new UdpClient();
+        var endpoint = new IPEndPoint(IPAddress.Loopback, RoomAnnouncement.DiscoveryPort);
+        var message = new RoomAnnouncement { game = RoomAnnouncement.Signature, version = LanMatchSession.ProtocolVersion,
+            name = "Protocol test", map = "sample", port = 47771, capacity = 2, open = 1 };
+        void Announce()
+        {
+            message.id = Guid.NewGuid().ToString("N");
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(message));
+            sender.Send(bytes, bytes.Length, endpoint);
+        }
+        message.version++;
+        Announce();
+        string incompatible = message.id;
+        message.version--;
+        message.open = 0;
+        Announce();
+        string full = message.id;
+        message.open = 1;
+        Announce();
+        yield return Until(() => browser.NearbyRooms.Any(r => r.Id == message.id));
+        Assert.That(browser.NearbyRooms.Any(r => r.Id == incompatible || r.Id == full), Is.False);
+        browser.StopBrowsing();
+        Assert.That(browser.NearbyRooms, Is.Empty);
+    }
+
+    [UnityTest]
     public IEnumerator HostRejectsWrongSeatAndReplayedGuestTurn()
     {
         var host = MakePlayer();
