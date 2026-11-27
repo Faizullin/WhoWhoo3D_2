@@ -70,6 +70,7 @@ namespace WhoWhoo3D.Gameplay.Wave
             foreach (var tile in _flying)
                 if (tile) Destroy(tile.gameObject);
             _flying.Clear();
+            ClearLandings();
             _displayScores.Clear();
             IsPlaying = false;
             IsPaused = false;
@@ -84,6 +85,15 @@ namespace WhoWhoo3D.Gameplay.Wave
 
         private bool _stepAndPause;
         private readonly List<Transform> _flying = new();
+
+        private readonly HashSet<SlotView> _landings = new();
+
+        private void ClearLandings()
+        {
+            foreach (var slot in _landings)
+                if (slot != null) slot.ShowLanding(false);
+            _landings.Clear();
+        }
 
         /// <summary>Seconds one chain step takes. Settable so a speed control can drive it.</summary>
         public float StepDuration
@@ -149,7 +159,13 @@ namespace WhoWhoo3D.Gameplay.Wave
                     ApplyDisplayScore(change.Before, change.After);
                 }
 
-                yield return Wait(stepDuration * 0.2f);
+                foreach (var flight in frame.Flights)
+                {
+                    var destination = RequireSlotView(flight.To);
+                    if (_landings.Add(destination)) destination.ShowLanding(true);
+                }
+
+                yield return Wait(Mathf.Max(stepDuration * .2f, .13f));
 
                 // A single-step request pauses once the step it asked for has landed.
                 if (_stepAndPause)
@@ -159,6 +175,7 @@ namespace WhoWhoo3D.Gameplay.Wave
                 }
 
                 yield return WaitWhilePaused();
+                ClearLandings();
             }
 
             // Hand presentation back to the model. Everything the animator showed was a

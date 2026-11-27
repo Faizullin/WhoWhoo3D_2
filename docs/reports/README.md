@@ -1,116 +1,47 @@
-# WhoWhoo3D gameplay report
+# Gameplay verification
 
-[Watch the flat match and vertical demo (63.4 s)](demo4x4.mp4)
+Unity 6000.4.5f1 on macOS. 126 Edit Mode and 8 Play Mode tests passed. P1 won the three-seat 4×4 game in 25 pointer claims.
 
-Unity 6000.4.5f1 · Demo4x4 · three local players · **P1 won in 25 clicks**.
+[Watch the complete match and terrace demo (64.2 s)](demo4x4.mp4) · [Watch the terrace wave](terrace-wave.mp4)
 
-**Tests passed** — Edit Mode (126), Play Mode (8). The match check compares every displayed legal move with the board rules, exercises map and player selection, checks restart, climbs a riser and clicks a rear face after orbiting.
+![Landing frame on the upper tread](screens/wave-landing.png)
 
-The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, rotates the camera by dragging, clicks the far wall, uses Relay and Freeze, takes supply and resolves a Beacon. The driver clicks Start match and Play again. The terrace sequence confirms Relay through the controller. Wave playback is accelerated for review. This run covers the local game on macOS. The LAN run below uses two copies of the same player.
+| Capture | Time |
+| --- | --- |
+| [Local match setup](screens/setup.png) | 0.0 s |
+| [Opening board and legal moves](screens/opening.png) | 1.6 s |
+| [First claim and turn handoff](screens/claim.png) | 2.8 s |
+| [Expansion across neighboring faces](screens/wave.png) | 12.1 s |
+| [Match result](screens/victory.png) | 41.0 s |
+| [Opening board after Play again](screens/restart.png) | 42.8 s |
+| [Terrace 6×6 opening](screens/terrace.png) | 44.2 s |
+| [Inventory charges and ability guide](screens/inventory-guide.png) | 45.7 s |
+| [Tread one claim from expanding](screens/one-away.png) | 47.5 s |
+| [Expansion from tread to riser](screens/terrace-wave.png) | 48.7 s |
+| [Wave landing on the upper terrace](screens/wave-landing.png) | 51.4 s |
+| [The terrace after orbiting to the far side](screens/terrace-orbit.png) | 53.2 s |
+| [Relay target preview before confirmation](screens/relay.png) | 54.8 s |
+| [A free supply choice after four ordinary claims](screens/supply.png) | 58.3 s |
+| [Frozen cube during the opposing turn](screens/freeze.png) | 59.5 s |
+| [Public Beacon marks before the opponent replies](screens/beacon.png) | 60.8 s |
+| [Beacon starting a wave before its owner acts](screens/beacon-wave.png) | 62.2 s |
 
-## Local match setup
+## Terrace playback timing
 
-0.0 s
+One two-seat terrace match used seed 42 and ordinary claims. The longest chain in 119 actions started on turn 111 with 8 steps and 229 slot changes. The visible player replayed that action from its saved position in both modes and matched the reference snapshot.
 
-![Local match setup](screens/setup.png)
+Wall-clock frame intervals on Apple M3 at 1280×720, including presentation and frame pacing. The run used the scene’s normal wave duration with screen recording disabled.
 
-## Opening board and legal moves
-
-1.6 s
-
-![Opening board and legal moves](screens/opening.png)
-
-## First claim and turn handoff
-
-2.8 s
-
-![First claim and turn handoff](screens/claim.png)
-
-## Expansion across neighboring faces
-
-12.1 s
-
-![Expansion across neighboring faces](screens/wave.png)
-
-## Match result
-
-41.0 s
-
-![Match result](screens/victory.png)
-
-## Opening board after Play again
-
-42.8 s
-
-![Opening board after Play again](screens/restart.png)
-
-## Terrace 6×6 opening
-
-44.2 s
-
-![Terrace 6×6 opening](screens/terrace.png)
-
-## Inventory charges and ability guide
-
-45.7 s
-
-![Inventory charges and ability guide](screens/inventory-guide.png)
-
-## Expansion from tread to riser
-
-47.8 s
-
-![Expansion from tread to riser](screens/terrace-wave.png)
-
-## The terrace after orbiting to the far side
-
-52.4 s
-
-![The terrace after orbiting to the far side](screens/terrace-orbit.png)
-
-## Relay target preview before confirmation
-
-54.0 s
-
-![Relay target preview before confirmation](screens/relay.png)
-
-## A free supply choice after four ordinary claims
-
-57.5 s
-
-![A free supply choice after four ordinary claims](screens/supply.png)
-
-## Frozen cube during the opposing turn
-
-58.7 s
-
-![Frozen cube during the opposing turn](screens/freeze.png)
-
-## Public Beacon marks before the opponent replies
-
-60.0 s
-
-![Public Beacon marks before the opponent replies](screens/beacon.png)
-
-## Beacon starting a wave before its owner acts
-
-61.3 s
-
-![Beacon starting a wave before its owner acts](screens/beacon-wave.png)
-
-## Match setup and four-seat Freeze targeting at 800×480
-
-![Match setup in a compact window](screens/compact-setup.png)
-
-Real pointer input selected Freeze, picked a cube and orbited the camera with the preview still active. The capture driver exercised Cancel, Escape and Confirm and checked that only Confirm spent a turn.
-
-![Four-seat terrace with Freeze selected](screens/compact-freeze.png)
+| Motion | Frames | Median | 95th percentile | Maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Normal | 3747 | 4.1 ms | 6.5 ms | 20.7 ms |
+| Reduced | 589 | 6.1 ms | 6.7 ms | 13.0 ms |
 
 ## Inventory and adaptive layouts
 
-![Four-seat inventory guide](screens/layouts/1280x720-1x-guide.png)
+The 800×480 window check drives Freeze selection, orbit, guide focus, Cancel and Confirm with real input. [Setup](screens/compact-setup.png) · [Freeze preview](screens/compact-freeze.png)
 
-These offscreen renders use the game’s camera and controls. The four-seat waiting room, Freeze preview and result are staged for layout inspection. The portrait safe area has simulated side, top and bottom insets. The large-text setting requests 2× scaling and fits to the available space. Each capture checks control bounds, overlap and text overflow.
+The offscreen layout checks use staged four-seat states. Each capture checks text overflow, overlap and bounds. Portrait uses simulated safe insets. Large text requests 2× and fits to the available space.
 
 | Viewport | UI scale | Setup | LAN room | Target | Inventory | Result |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -139,12 +70,4 @@ Two macOS player processes ran on one computer. The guest discovered the named r
 
 [Separate-interface and blocked-discovery checks](LAN.md)
 
-## Refresh
-
-On a graphics-capable macOS desktop with the pinned Unity editor, Mac build support, Python 3, FFmpeg and ffprobe installed, run the following from the repo root.
-
-```sh
-python3 scripts/report.py
-```
-
-Use `--unity /path/to/Unity` to select the editor executable. The command tests a disposable project copy, builds a player, then replaces the report, screenshots and MP4 after the match and video checks pass. Raw frames and build products are temporary.
+Regenerate the tests, captures and timing sample with the [build guide](../BUILD_GUIDE.md).

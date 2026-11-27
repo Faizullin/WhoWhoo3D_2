@@ -5,7 +5,44 @@ namespace WhoWhoo3D.Gameplay.Board.View;
 /// <summary>Small shared meshes for the board's chamfered silhouettes and printed seat marks.</summary>
 internal static class BoardMeshes
 {
-    private static Mesh _cube;
+    private static Mesh _cube, _frame;
+    private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+    private static readonly int Tint = Shader.PropertyToID("_Color");
+
+    // A flat, open square shared by face diamonds, frost rims and tile landing frames.
+    public static Renderer Frame(Transform parent, string name, Vector3 position, Quaternion rotation, float size, Color color)
+    {
+        if (!_frame)
+        {
+            var vertices = new Vector3[8];
+            var indices = new int[24];
+            Vector3[] corners = { new(-.5f, 0, -.5f), new(-.5f, 0, .5f), new(.5f, 0, .5f), new(.5f, 0, -.5f) };
+            for (int i = 0; i < corners.Length; i++)
+            {
+                int a = i * 2, b = ((i + 1) % 4) * 2, t = i * 6;
+                vertices[a] = corners[i];
+                vertices[a + 1] = corners[i] * .86f;
+                indices[t] = a; indices[t + 1] = b; indices[t + 2] = b + 1;
+                indices[t + 3] = a; indices[t + 4] = b + 1; indices[t + 5] = a + 1;
+            }
+            _frame = new Mesh { name = "Board outline", vertices = vertices, triangles = indices };
+            _frame.RecalculateNormals();
+        }
+        var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+        go.transform.SetParent(parent, false);
+        go.transform.SetLocalPositionAndRotation(position, rotation);
+        go.transform.localScale = Vector3.one * size;
+        go.GetComponent<MeshFilter>().sharedMesh = _frame;
+        var renderer = go.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = SlotView.SharedMaterial();
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var block = new MaterialPropertyBlock();
+        block.SetColor(BaseColor, color);
+        block.SetColor(Tint, color);
+        renderer.SetPropertyBlock(block);
+        return renderer;
+    }
+
     private static readonly Mesh[] Stamps = new Mesh[4];
     public static Mesh Cube => _cube ? _cube : _cube = MakeCube();
 

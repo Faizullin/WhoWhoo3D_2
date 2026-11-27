@@ -63,6 +63,16 @@ public sealed class SlotView : MonoBehaviour
             _hoverOutline.SetActive(show);
     }
 
+    private Renderer _landing;
+
+    public void ShowLanding(bool show)
+    {
+        if (show && _landing == null)
+            _landing = BoardMeshes.Frame(transform, "Wave landing", Vector3.up * .56f,
+                Quaternion.identity, 1.26f, new Color32(255, 247, 202, 255));
+        if (_landing != null) _landing.enabled = show;
+    }
+
     public SlotId SlotId { get; private set; }
     public SlotId Partner => _slot.Partner;
 

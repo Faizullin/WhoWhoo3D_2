@@ -239,7 +239,11 @@ internal sealed class MatchHud
         foreach (var player in _game.Roster.Players)
         {
             var inv = player.Inventory;
-            if (!string.IsNullOrEmpty(inv.frozenCell)) _effects.Append($"   •   Ice ends T{inv.thawAfterTurn}");
+            if (!string.IsNullOrEmpty(inv.frozenCell))
+            {
+                var cube = _game.Board.GetCell(new CellId(inv.frozenCell));
+                _effects.Append($"   •   Ice {cube.Position} ends after turn {inv.thawAfterTurn}");
+            }
             if (inv.HasBeacon) _effects.Append($"   •   {player.Id} Beacon pending");
         }
         string inspected = null;

@@ -40,9 +40,10 @@ public class MatchRecorder : MonoBehaviour
         mouse.MakeCurrent();
         bool compact = Environment.GetEnvironmentVariable("WHOWHOO_COMPACT_HUD") == "1";
         bool layouts = Environment.GetEnvironmentVariable("WHOWHOO_LAYOUTS") == "1";
+        bool profile = Environment.GetEnvironmentVariable("WHOWHOO_WAVE_PROFILE") == "1";
         if (compact) yield return CaptureCompact("compact-setup");
-        else if (!layouts) StartCoroutine(RecordFrames());
-        var sequence = layouts ? new LayoutRecorder(game, _directory).Run() : compact ? CompactHudSequence.Run(game, board, Camera.main, mouse,
+        else if (!layouts && !profile) StartCoroutine(RecordFrames());
+        var sequence = profile ? WaveProfile.Run(game, _directory) : layouts ? new LayoutRecorder(game, _directory).Run() : compact ? CompactHudSequence.Run(game, board, Camera.main, mouse,
             () => StartCoroutine(CaptureCompact("compact-freeze"))) :
             DemoMatchSequence.Run(game, board, Camera.main, mouse, name => _checkpoint = name, true);
         // Unroll nested iterators so assertion failures also reach the calling script.

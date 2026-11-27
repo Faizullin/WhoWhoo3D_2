@@ -26,7 +26,9 @@ SCENES = {
     "restart": "Opening board after Play again",
     "terrace": "Terrace 6×6 opening",
     "inventory-guide": "Inventory charges and ability guide",
+    "one-away": "Tread one claim from expanding",
     "terrace-wave": "Expansion from tread to riser",
+    "wave-landing": "Wave landing on the upper terrace",
     "terrace-orbit": "The terrace after orbiting to the far side",
     "relay": "Relay target preview before confirmation",
     "supply": "A free supply choice after four ordinary claims",
@@ -131,6 +133,7 @@ def main():
         shutil.copy(TOOLS / "BuildReportPlayer.cs", capture / "Editor")
         shutil.copy(TOOLS / "MatchRecorder.cs", capture)
         shutil.copy(TOOLS / "LayoutRecorder.cs", capture)
+        shutil.copy(TOOLS / "WaveProfile.cs", capture)
         shutil.copy(TOOLS / "LanMatchRecorder.cs", capture)
         for sequence in ("DemoMatchSequence", "CompactHudSequence"):
             shutil.copy(project / f"Assets/_Project/Tests/PlayMode/{sequence}.cs", capture)
@@ -154,6 +157,9 @@ def main():
             compact_log, env=dict(env, WHOWHOO_COMPACT_HUD="1"))
         layout_log = work / "layouts.log"
         run([*command, "-logFile", layout_log], layout_log, env=dict(env, WHOWHOO_LAYOUTS="1"))
+        profile_log = work / "wave-profile.log"
+        run([*command, "-logFile", profile_log], profile_log, env=dict(env, WHOWHOO_WAVE_PROFILE="1"))
+        profile = json.loads((frames / "wave-profile.json").read_text())
         lan = record_lan(command, env, frames, work)
         lines = (frames / "timeline.tsv").read_text().splitlines()
         times = {label: int(frame) / FPS for frame, label in (line.split("\t") for line in lines)}
@@ -181,33 +187,38 @@ def main():
         stream = metadata["streams"][0]
         if stream["codec_name"] != "h264" or int(stream["nb_frames"]) != len(list(frames.glob("frame-*.png"))):
             raise RuntimeError("Encoded video failed validation.")
+        clip = output / "terrace-wave.mp4"
+        run(["ffmpeg", "-loglevel", "error", "-ss", str(times["one-away"]), "-i", movie,
+             "-t", str(times["terrace-orbit"] - times["one-away"]), "-an", "-c:v", "libx264",
+             "-pix_fmt", "yuv420p", "-movflags", "+faststart", clip])
         report = [
-            "# WhoWhoo3D gameplay report", "",
-            f"[Watch the flat match and vertical demo ({float(stream['duration']):.1f} s)](demo4x4.mp4)", "",
-            f"Unity {version} · Demo4x4 · three local players · **P{result[2]} won in {result[1]} clicks**.", "",
-            f"**Tests passed** — Edit Mode ({edit}), Play Mode ({play}). "
-            "The match check compares every displayed legal move with the board rules, exercises map and player selection, "
-            "checks restart, climbs a riser and clicks a rear face after orbiting.", "",
-            "The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera "
-            "and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, "
-            "rotates the camera by dragging, clicks the far wall, uses Relay and Freeze, takes supply and resolves a Beacon. "
-            "The driver clicks Start match and Play again. The terrace sequence confirms Relay through the controller. "
-            "Wave playback is accelerated for review. This run covers the local game on macOS. "
-            "The LAN run below uses two copies of the same player.", "",
+            "# Gameplay verification", "",
+            f"Unity {version} on macOS. {edit} Edit Mode and {play} Play Mode tests passed. "
+            f"P{result[2]} won the three-seat 4×4 game in {result[1]} pointer claims.", "",
+            f"[Watch the complete match and terrace demo ({float(stream['duration']):.1f} s)](demo4x4.mp4) · "
+            "[Watch the terrace wave](terrace-wave.mp4)", "",
+            "![Landing frame on the upper tread](screens/wave-landing.png)", "",
+            "| Capture | Time |", "| --- | --- |"
         ]
         for name, title in SCENES.items():
-            report += [f"## {title}", "", f"{times[name]:.1f} s", "", f"![{title}](screens/{name}.png)", ""]
-        report += ["## Match setup and four-seat Freeze targeting at 800×480", "",
-                   "![Match setup in a compact window](screens/compact-setup.png)", "",
-                   "Real pointer input selected Freeze, picked a cube and orbited the camera with the preview still active. "
-                   "The capture driver exercised Cancel, Escape and Confirm and checked that only Confirm spent a turn.", "",
-                   "![Four-seat terrace with Freeze selected](screens/compact-freeze.png)", ""]
-        report += ["## Inventory and adaptive layouts", "",
-                   "![Four-seat inventory guide](screens/layouts/1280x720-1x-guide.png)", "",
-                   "These offscreen renders use the game’s camera and controls. The four-seat waiting room, Freeze preview "
-                   "and result are staged for layout inspection. The portrait safe area has simulated side, top and bottom insets. "
-                   "The large-text setting requests 2× scaling and fits to the available space. "
-                   "Each capture checks control bounds, overlap and text overflow.", "",
+            report.append(f"| [{title}](screens/{name}.png) | {times[name]:.1f} s |")
+        report += ["", "## Terrace playback timing", "",
+                   f"One two-seat terrace match used seed {profile['seed']} and ordinary claims. "
+                   f"The longest chain in {profile['turns']} actions started on turn {profile['waveTurn']} "
+                   f"with {profile['steps']} steps and {profile['changes']} slot changes. "
+                   "The visible player replayed that action from its saved position in both modes and matched the reference snapshot.", "",
+                   f"Wall-clock frame intervals on {profile['device']} at 1280×720, including presentation and frame pacing. "
+                   "The run used the scene’s normal wave duration with screen recording disabled.", "",
+                   "| Motion | Frames | Median | 95th percentile | Maximum |", "| --- | ---: | ---: | ---: | ---: |"]
+        for key in ("normal", "reduced"):
+            sample = profile[key]
+            report.append(f"| {key.title()} | {sample['frames']} | {sample['medianMs']:.1f} ms | "
+                          f"{sample['p95Ms']:.1f} ms | {sample['maxMs']:.1f} ms |")
+        report += ["", "## Inventory and adaptive layouts", "",
+                   "The 800×480 window check drives Freeze selection, orbit, guide focus, Cancel and Confirm with real input. "
+                   "[Setup](screens/compact-setup.png) · [Freeze preview](screens/compact-freeze.png)", "",
+                   "The offscreen layout checks use staged four-seat states. Each capture checks text overflow, overlap and bounds. "
+                   "Portrait uses simulated safe insets. Large text requests 2× and fits to the available space.", "",
                    "| Viewport | UI scale | Setup | LAN room | Target | Inventory | Result |",
                    "| --- | --- | --- | --- | --- | --- | --- |"]
         for size in layout_sizes:
@@ -224,16 +235,11 @@ def main():
                    "![Guest taking a turn](screens/lan-guest-turn.png)", "",
                    "![Result on the host](screens/lan-host-result.png)", ""]
         report += ["[Separate-interface and blocked-discovery checks](LAN.md)", ""]
-        report += ["## Refresh", "", "On a graphics-capable macOS desktop with the pinned Unity editor, Mac build support, "
-                   "Python 3, FFmpeg and ffprobe installed, run the following from the repo root.", "",
-                   "```sh", "python3 scripts/report.py", "```", "",
-                   "Use `--unity /path/to/Unity` to select the editor executable. The command tests a disposable project copy, "
-                   "builds a player, then replaces the report, screenshots and MP4 after the match and video checks pass. "
-                   "Raw frames and build products are temporary.", ""]
+        report += ["Regenerate the tests, captures and timing sample with the [build guide](../BUILD_GUIDE.md).", ""]
         (output / "README.md").write_text("\n".join(report))
         DEST.mkdir(parents=True, exist_ok=True)
         (DEST / "screens").mkdir(exist_ok=True)
-        for source in [*screens.rglob("*.png"), movie, output / "README.md"]:
+        for source in [*screens.rglob("*.png"), movie, clip, output / "README.md"]:
             target = DEST / source.relative_to(output)
             target.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as staged, source.open("rb") as src:

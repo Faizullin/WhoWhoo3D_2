@@ -16,6 +16,7 @@ public class CellView : MonoBehaviour
 
     public void Init(Cell cell, Vector3 position)
     {
+        _cell = cell;
         CellId = cell.Id;
         transform.localPosition = position;
         var mesh = GetComponent<MeshFilter>();
@@ -43,6 +44,23 @@ public class CellView : MonoBehaviour
         }
     }
 
+    private readonly Dictionary<int, Renderer> _readyFaces = new();
+    private Cell _cell;
+    private GameObject _iceRims;
+
+    public void SetExpansionReady(int face, bool ready)
+    {
+        if (!_readyFaces.TryGetValue(face, out var mark))
+        {
+            if (!ready) return;
+            var rotation = CubeGeometry.SlotLocalRotation(face, 0) * Quaternion.Euler(0, 45, 0);
+            mark = BoardMeshes.Frame(transform, $"One claim away {face}", CubeGeometry.FaceNormal(face) * .506f,
+                rotation, .225f, new Color32(255, 210, 113, 255));
+            _readyFaces.Add(face, mark);
+        }
+        mark.enabled = ready;
+    }
+
     private Renderer _body;
     private MaterialPropertyBlock _surface;
     private bool _frozen;
@@ -52,6 +70,15 @@ public class CellView : MonoBehaviour
         if (_frozen == frozen) return;
         _frozen = frozen;
         PaintBody(frozen);
+        if (frozen && _iceRims == null)
+        {
+            _iceRims = new GameObject("Frost rim");
+            _iceRims.transform.SetParent(transform, false);
+            foreach (var side in _cell.ExposedSides)
+                BoardMeshes.Frame(_iceRims.transform, $"Face {side.LocalIndex}", CubeGeometry.FaceNormal(side.LocalIndex) * .508f,
+                    CubeGeometry.SlotLocalRotation(side.LocalIndex, 0), .97f, new Color32(182, 242, 255, 255));
+        }
+        if (_iceRims != null) _iceRims.SetActive(frozen);
     }
 
     private void PaintBody(bool frozen)

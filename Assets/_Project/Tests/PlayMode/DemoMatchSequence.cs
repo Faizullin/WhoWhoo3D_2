@@ -162,7 +162,14 @@ public static class DemoMatchSequence
         MatchSnapshot beforeClimb = null;
         for (int i = 0; i < route.Length; i++)
         {
-            if (!record && i == route.Length - 1) beforeClimb = MatchSnapshot.Capture(game);
+            if (i == route.Length - 1)
+            {
+                var mark = board.GetCellView(tread.Cell).transform.Find($"One claim away {tread.LocalIndex}");
+                Require(mark && mark.GetComponent<Renderer>().enabled, "Missing near-expansion mark on the tread");
+                beforeClimb = MatchSnapshot.Capture(game);
+                checkpoint("one-away");
+                yield return Hold(record ? 10 : 1);
+            }
             Require(game.TryPlayerAction(route[i]), "Terrace claim failed at " + route[i]);
             if (i == route.Length - 1) break;
             var replies = BoardActions.LegalMoves(game.Board, game.ActivePlayer.Id);
@@ -174,7 +181,18 @@ public static class DemoMatchSequence
         yield return Hold(record ? 4 : 1);
         checkpoint("terrace-wave");
         float settledBy = Time.realtimeSinceStartup + 10f;
-        while (!game.AcceptsBoardInput && Time.realtimeSinceStartup < settledBy) yield return null;
+        var arrival = board.GetSlotView(new SlotId(upper, 3));
+        bool landed = false;
+        while (!game.AcceptsBoardInput && Time.realtimeSinceStartup < settledBy)
+        {
+            if (!landed && LandingVisible(arrival))
+            {
+                landed = true;
+                checkpoint("wave-landing");
+            }
+            yield return null;
+        }
+        Require(landed && !LandingVisible(arrival), "Landing frame must appear on the upper tread and clear after playback");
         Require(game.AcceptsBoardInput && game.ActivePlayer.Id.Value == 2, "Terrace wave did not settle.");
         Require(game.Board.GetSlot(new SlotId(upper, 3)).Owner == new PlayerId(1), "Wave missed the upper terrace.");
         if (!record)
@@ -186,13 +204,17 @@ public static class DemoMatchSequence
                 PresentationSettings.ReducedMotion = true;
                 game.RestoreMatch(game.Setup, beforeClimb);
                 Require(game.TryPlayerAction(route[route.Length - 1]), "Reduced-motion climb did not start");
+                arrival = board.GetSlotView(new SlotId(upper, 3));
+                bool reducedLanding = false;
                 float deadlineForClimb = Time.realtimeSinceStartup + 10;
                 while (!game.AcceptsBoardInput && Time.realtimeSinceStartup < deadlineForClimb)
                 {
+                    reducedLanding |= LandingVisible(arrival);
                     Require(!game.WaveAnimator.GetComponentsInChildren<Transform>().Any(t => t.name.StartsWith("WaveTile_")),
                         "Reduced motion spawned a flying tile");
                     yield return null;
                 }
+                Require(reducedLanding && !LandingVisible(arrival), "Reduced motion lost the static arrival frame");
                 Require(game.AcceptsBoardInput && expected == JsonUtility.ToJson(MatchSnapshot.Capture(game)),
                     "Reduced-motion playback changed the settled terrace match");
             }
@@ -262,12 +284,14 @@ public static class DemoMatchSequence
         game.SelectAbility(MatchAction.Freeze);
         game.OnSlotClicked(ice.Id);
         Require(game.ConfirmAbility(), "Could not freeze a cube.");
+        var rim = board.GetCellView(ice.Id.Side.Cell).transform.Find("Frost rim");
+        Require(rim && rim.gameObject.activeInHierarchy, "Frozen cube is missing its rim");
         checkpoint("freeze");
         yield return Hold(record ? 16 : 1);
         var safe = allSlots.First(s => game.Abilities.CanClaim(s.Id) && game.Board.GetSide(s.Id.Side).Slots.All(t => t.IsNeutral));
         Require(game.TryPlayerAction(safe.Id), "Expected an unfrozen reply.");
         while (!game.AcceptsBoardInput) yield return null;
-        Require(!game.Abilities.Frozen(ice.Id.Side.Cell), "The ice did not thaw.");
+        Require(!game.Abilities.Frozen(ice.Id.Side.Cell) && !rim.gameObject.activeInHierarchy, "The ice did not thaw.");
         var marks = game.Board.Cells.Values.SelectMany(c => c.ExposedSides)
             .Where(f => f.SlotCount == 2 && f.Slots.All(s => game.Abilities.CanClaim(s.Id))).First().Slots.ToArray();
         game.SelectAbility(MatchAction.Beacon);
@@ -286,6 +310,12 @@ public static class DemoMatchSequence
         while (!game.AcceptsBoardInput && !game.IsGameOver && Time.realtimeSinceStartup < deadlineForBeacon) yield return null;
         Require(game.AcceptsBoardInput && game.ActivePlayer.Id == caster,
             $"Beacon must return control to {caster}. Active {game.ActivePlayer.Id}, phase {game.CurrentPhase}, winner {game.Winner}.");
+    }
+
+    private static bool LandingVisible(SlotView slot)
+    {
+        var marker = slot.transform.Find("Wave landing");
+        return marker && marker.GetComponent<Renderer>().enabled;
     }
 
     private static IEnumerator Hold(int frames)

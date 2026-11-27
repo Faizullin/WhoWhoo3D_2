@@ -293,6 +293,7 @@ namespace WhoWhoo3D.Gameplay.Game
         {
             _gameOver = true;
             Winner = winner;
+            ShowTurnHints(false);
         }
 
         private void SetPhase(IGamePhase phase)
@@ -598,8 +599,11 @@ namespace WhoWhoo3D.Gameplay.Game
 
         public void ShowTurnHints(bool visible)
         {
-            if (boardView != null && Board != null)
-                boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None, Abilities, SelectedAction);
+            if (boardView == null || Board == null) return;
+            bool showFaceState = CurrentPhase is PlayerTurnPhase turn && !turn.IsComplete &&
+                !InSetup && !IsPaused && !IsGameOver && !IsReviewingHistory;
+            boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None,
+                Abilities, SelectedAction, showFaceState);
         }
 
         public void RefreshBoardView()
