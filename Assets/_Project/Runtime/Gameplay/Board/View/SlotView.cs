@@ -27,22 +27,23 @@ public sealed class SlotView : MonoBehaviour
     /// <summary>Presentation override used by WaveAnimator; null means "follow the model".</summary>
     private PlayerId? _displayOverride;
 
-    private bool _locked;
+    private bool _locked, _relayHint;
     private GameObject _hoverOutline;
     public bool IsClaimHighlighted { get; private set; }
 
-    public void SetTurnHint(bool legal, bool locked)
+    public void SetTurnHint(bool legal, bool locked, bool relayHint = false)
     {
-        if (IsClaimHighlighted == legal && _locked == locked) return;
+        if (IsClaimHighlighted == legal && _locked == locked && _relayHint == relayHint) return;
+        _relayHint = relayHint;
         IsClaimHighlighted = legal;
         _locked = locked;
-        if (!legal) SetHovered(false);
+        SetHovered(false);
         Refresh();
     }
 
     public void SetHovered(bool hovered)
     {
-        bool show = hovered && IsClaimHighlighted;
+        bool show = (hovered && IsClaimHighlighted) || _relayHint;
         if (show && _hoverOutline == null)
         {
             _hoverOutline = new GameObject("Hover outline");
@@ -62,6 +63,7 @@ public sealed class SlotView : MonoBehaviour
     }
 
     public SlotId SlotId { get; private set; }
+    public SlotId Partner => _slot.Partner;
 
     public void Init(Slot slot, int face, int edge)
     {

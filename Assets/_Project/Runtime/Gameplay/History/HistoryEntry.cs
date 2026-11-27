@@ -11,6 +11,7 @@ public enum HistoryKind
 
     /// <summary>One chain step of an expansion.</summary>
     WaveStep,
+    Relay,
 }
 
 /// <summary>

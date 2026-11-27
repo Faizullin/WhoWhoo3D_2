@@ -20,7 +20,7 @@ namespace WhoWhoo3D.Networking
     public sealed class LanMatchSession : MonoBehaviour, IMatchConnection
     {
         public const int DefaultPort = 47771;
-        internal const int ProtocolVersion = 1;
+        internal const int ProtocolVersion = 2;
 
         public LanState State { get; private set; }
         public bool IsHost => _listener != null;

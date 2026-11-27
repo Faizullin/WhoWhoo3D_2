@@ -20,16 +20,17 @@ internal sealed class LanMessage
     public int round;
     public int sequence;
     public int turn;
+    public bool relay;
     public string cell;
     public int side;
     public int edge;
     public MatchSnapshot snapshot;
 
-    public ClaimSlotCommand Claim => new(new PlayerId(seat), turn, new SlotId(new SideId(new CellId(cell), side), edge));
+    public ClaimSlotCommand Claim => new(new PlayerId(seat), turn, new SlotId(new SideId(new CellId(cell), side), edge), relay);
 
     public static LanMessage Move(string kind, int round, int sequence, ClaimSlotCommand claim) => new()
     {
         kind = kind, round = round, sequence = sequence, seat = claim.Actor.Value, turn = claim.TurnNumber,
-        cell = claim.Slot.Side.Cell.Value, side = claim.Slot.Side.LocalIndex, edge = claim.Slot.Edge
+        relay = claim.Relay, cell = claim.Slot.Side.Cell.Value, side = claim.Slot.Side.LocalIndex, edge = claim.Slot.Edge
     };
 }

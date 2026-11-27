@@ -5,21 +5,21 @@ using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Board;
 using WhoWhoo3D.Gameplay.Game;
 using WhoWhoo3D.Gameplay.History;
-using WhoWhoo3D.Gameplay.Maps;
 
 namespace WhoWhoo3D.Tests.EditMode.Turn;
 
 public class MatchReplayTests
 {
-    [Test]
-    public void ReplayingAcceptedClaimsOnAnIndependentBoardMatchesTheHostThroughVictory()
+    [TestCase("demo4x4")]
+    [TestCase("terrace6x6")]
+    public void ReplayingAcceptedClaimsOnAnIndependentBoardMatchesTheHostThroughVictory(string map)
     {
         var hostObject = new GameObject("Host");
         var clientObject = new GameObject("Client");
         try
         {
-            var host = StartMatch(hostObject);
-            var client = StartMatch(clientObject);
+            var host = StartMatch(hostObject, map);
+            var client = StartMatch(clientObject, map);
             var random = new System.Random(42);
             bool sawExpansion = false;
             while (!host.IsGameOver)
@@ -69,11 +69,10 @@ public class MatchReplayTests
         }
     }
 
-    private static GameController StartMatch(GameObject holder)
+    private static GameController StartMatch(GameObject holder, string map)
     {
         var game = holder.AddComponent<GameController>();
-        game.ConfigurePlayers(3);
-        game.InitializeWithBoard(MapLoader.Load("demo4x4"));
+        game.StartMatchWithoutPresentation(new MatchSetup(map, new SeatControl[3]));
         return game;
     }
 }

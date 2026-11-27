@@ -17,19 +17,16 @@ One player hosts and plays P1. Guests select an advertised room or enter an IPv4
 
 ## 2. Abilities System
 
-Begin with one charge of Freeze after the vertical board and camera slice. Phase and turn manipulation are later balance experiments.
-
-- [ ] Define ability metadata and a charge-based inventory.
-- [ ] `IAbilityExecutor` + `AbilitySystem.Execute(player, ability, target)`.
-- [ ] `PlayerInventory` on `PlayerState`.
-- [ ] Ability bar in the HUD.
-- [ ] `WhoWhoo3D.Data` assembly gets its first real sources here.
+- [x] Relay with one charge per seat, a target preview, confirm/cancel and history.
+- [x] Validate and replicate the same action in Solo, Hot-seat and player-hosted LAN. Restore the charge on rematch and its spent state on reconnect.
+- [ ] Add Freeze with a visible expiry and a shared typed inventory for both powers.
+- [ ] Run mirrored-seat balance fixtures. Try Beacon next for delayed threats, then compare Phase, Bank and Switchback. [Ability rules, counterplay and research](GAMEPLAY_ROADMAP.md)
 
 ---
 
 ## 3. Scene Architecture
 
-**Status: PARTIAL.** `Demo4x4` is built (see below); the real scenes are not.
+The shipping setup uses one match scene across modes and maps.
 
 Scenes are wiring, and wiring done by hand drifts — a missing reference or an unticked box
 costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a scene from a
@@ -38,11 +35,11 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 | Scene | State |
 |---|---|
 | `Game.unity` | The original hand-wired scene. **Leave it alone** — it is the working reference. |
-| `Demo4x4.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build Demo4x4 Scene`. 16 cubes, 3 players, top faces only. |
+| `Demo4x4.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build Demo4x4 Scene`. Opens the map and mode selector. The default 4×4 has 16 cubes and three seats. |
 | `DemoMapEditor.unity` | Built by `Tools ▸ WhoWhoo3D ▸ Build MapEditor Demo Scene`. Authoring demo, not a shipping scene. |
 | Solo, hot-seat and LAN | Shared `Demo4x4.unity` setup and board. Seat controls and the session determine how moves arrive. |
 
-- [ ] Decide which scene to ship as the default entry point.
+- [x] Load the flat and stepped demos through the same default entry point.
 
 ---
 
@@ -50,7 +47,7 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 
 **Status: Partial.**
 
-The current board uses primitive cubes and code-spawned tiles. Mint highlights identify legal claims. The next readability task is making paired edges and wave paths legible across different heights.
+The current board uses primitive cubes and code-spawned tiles. Mint highlights identify legal claims. Hover marks the paired edge through terrain. The next presentation task is animating the path across a corner.
 
 ### Mesh / visual
 - [ ] Replace `GameObject.CreatePrimitive` tiles with an authored mesh or prefab. Tiles are
@@ -59,7 +56,7 @@ The current board uses primitive cubes and code-spawned tiles. Mint highlights i
 - [ ] Distinguish **face state** visually: free, held, one-tile-from-full, locked by an enemy.
       Right now a full face and a nearly-full face look identical.
 - [ ] Buildable/placeable item visuals — the piece the future map editor and abilities need.
-- [ ] Fit, orbit, pan and zoom the vertical demo using the loaded board bounds.
+- [x] Fit, orbit, pan and zoom the vertical demo using the loaded board bounds.
 
 ### UI interaction
 - [ ] Replace `ScoreboardView` and `TimelineView` IMGUI with uGUI/TextMeshPro.
@@ -101,7 +98,7 @@ Turn handoff and board readability also support online play and future target se
 
 ## 6. Ideas Not Committed To
 
-- Larger or irregular clusters beyond the planned stepped demo.
+- Larger or irregular clusters beyond the stepped demo.
 - Sparse tile networks — maps where not every edge carries a tile pair. Supported by the
   model and validator today, but no map uses it and the gameplay effect is unexplored.
 - Tuning `ConquestTakesFace = false` (only the targeted slot flips, so contested faces

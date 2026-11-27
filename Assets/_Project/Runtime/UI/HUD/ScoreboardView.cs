@@ -94,6 +94,7 @@ namespace WhoWhoo3D.UI.HUD
             int players = gameController.Roster.Players.Count;
             bool inRoom = _session.State == LanState.Playing;
             float height = 34f + players * RowHeight + (gameController.IsGameOver || inRoom ? 112f : 54f);
+            if (!gameController.IsGameOver) height += gameController.ChoosingRelay ? 82f : 33f;
             float panelWidth = Mathf.Min(width, logicalWidth - 2 * margin.x);
             float x = corner == Corner.TopLeft ? margin.x : logicalWidth - panelWidth - margin.x;
 
@@ -107,6 +108,8 @@ namespace WhoWhoo3D.UI.HUD
             DrawPlayers();
             GUILayout.Space(6f);
             GUILayout.Label(StatusLine(), _note);
+
+            if (!gameController.IsGameOver) DrawRelay();
 
             if (inRoom)
             {
@@ -133,6 +136,35 @@ namespace WhoWhoo3D.UI.HUD
 
             GUILayout.EndArea();
             GUI.matrix = previousMatrix;
+        }
+
+        private void DrawRelay()
+        {
+            var seat = gameController.ActivePlayer;
+            if (_session.LocalSeat > 0) seat = gameController.Roster.Players[_session.LocalSeat - 1];
+            else if (_room.IsSolo) seat = gameController.Roster.Players[0];
+            if (!gameController.ChoosingRelay)
+            {
+                bool enabled = GUI.enabled;
+                GUI.enabled = enabled && gameController.AcceptsBoardInput && !seat.RelaySpent;
+                if (GUILayout.Button($"Relay · {(seat.RelaySpent ? 0 : 1)} charge", GUILayout.Height(26)))
+                    gameController.ChooseRelay(true);
+                GUI.enabled = enabled;
+                return;
+            }
+            string prompt = gameController.RelaySource.HasValue
+                ? "The boxed tile empties. Both + tiles gain your color. Confirm to spend your turn."
+                : "Pick a gold-rimmed tile to move it across its edge and claim two white tiles.";
+            if (gameController.RenderedBoard != null && !gameController.RenderedBoard.HasHighlightedTargets)
+                prompt = "No owned tile can reach two white tiles. Cancel to make a normal claim.";
+            GUILayout.Label(prompt, _note);
+            GUILayout.BeginHorizontal();
+            bool previous = GUI.enabled;
+            GUI.enabled = previous && gameController.AcceptsBoardInput && gameController.RelaySource.HasValue;
+            if (GUILayout.Button("Confirm Relay", GUILayout.Height(28))) gameController.ConfirmRelay();
+            GUI.enabled = previous;
+            if (GUILayout.Button("Cancel", GUILayout.Height(28))) gameController.ChooseRelay(false);
+            GUILayout.EndHorizontal();
         }
 
         private void DrawSetup(HudViewport viewport)
@@ -169,7 +201,9 @@ namespace WhoWhoo3D.UI.HUD
             }
             GUILayout.Space(6);
             GUILayout.Label("Map");
-            _mapIndex = GUILayout.SelectionGrid(_mapIndex, _maps, 2, GUILayout.Height(28));
+            int columns = Mathf.Clamp(_maps.Length, 1, 3);
+            _mapIndex = GUILayout.SelectionGrid(_mapIndex, _maps, columns,
+                GUILayout.Height(28 * Mathf.Max(1, Mathf.CeilToInt((float)_maps.Length / columns))));
             GUILayout.Label("Players");
             _players = GameController.MinPlayers + GUILayout.Toolbar(_players - GameController.MinPlayers,
                 new[] { "2", "3", "4" }, GUILayout.Height(28));
@@ -182,6 +216,7 @@ namespace WhoWhoo3D.UI.HUD
                 GUILayout.Label(_room.IsSolo && i > 1 ? $"CPU {i}" : $"P{i}");
             }
             GUILayout.EndHorizontal();
+            if (!_room.IsHosting) GUILayout.Label("Right-drag to orbit · Middle-drag to pan · Scroll to zoom · Home to reset", _note);
             GUILayout.FlexibleSpace();
             if (_setupError != null) GUILayout.Label(_setupError);
             if (_maps.Length > 0 && _room.IsHosting) _room.DrawHost(_maps[_mapIndex], _players);
@@ -251,6 +286,8 @@ namespace WhoWhoo3D.UI.HUD
                     ? "Draw — no winner"
                     : $"Game over — P{gameController.Winner.Value} wins";
 
+            if (gameController.ChoosingRelay && gameController.AcceptsBoardInput)
+                return $"P{gameController.ActivePlayer.Id.Value} · Relay preview";
             if (_session.State == LanState.Playing)
             {
                 string who = $"You are P{_session.LocalSeat}";

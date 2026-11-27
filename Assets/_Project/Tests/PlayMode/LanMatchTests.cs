@@ -66,7 +66,15 @@ public class LanMatchTests
             int active = board.ActivePlayer.Id.Value - 1;
             var slot = BoardActions.LegalMoves(board.Board, board.ActivePlayer.Id).OrderBy(_ => rng.Next()).First();
             Assert.That(games[(active + 1) % games.Length].TryPlayerAction(slot), Is.False);
-            Assert.That(games[active].TryPlayerAction(slot), Is.True);
+            if (moves == 1)
+            {
+                var source = board.Board.Cells.Values.SelectMany(c => c.ExposedSides).SelectMany(s => s.Slots)
+                    .First(s => BoardActions.TryRelay(board.Board, s.Id, board.ActivePlayer.Id, out _, out _));
+                games[active].ChooseRelay(true);
+                games[active].OnSlotClicked(source.Id);
+                Assert.That(games[active].ConfirmRelay(), Is.True);
+            }
+            else Assert.That(games[active].TryPlayerAction(slot), Is.True);
             Assert.That(games[active].TryPlayerAction(slot), Is.False);
             moves++;
             Assert.That(moves, Is.LessThan(500));
@@ -85,6 +93,7 @@ public class LanMatchTests
                 guest.Reconnect();
                 yield return Until(() => _sessions.All(s => s.State == LanState.Playing));
                 Assert.That(guest.LocalSeat, Is.EqualTo(2));
+                Assert.That(games.All(g => g.Roster.Players[1].RelaySpent), Is.True);
                 foreach (var game in games)
                     Assert.That(JsonUtility.ToJson(MatchSnapshot.Capture(game)), Is.EqualTo(expected));
             }
@@ -92,6 +101,7 @@ public class LanMatchTests
         host.Rematch();
         yield return Until(() => _sessions.All(s => s.Revision == 0));
         Assert.That(games.All(g => !g.IsGameOver && g.TurnNumber == 1 && g.MapName == "demo4x4"), Is.True);
+        Assert.That(games.All(g => g.Roster.Players.All(p => !p.RelaySpent)), Is.True);
         guest.Leave();
         yield return Until(() => _sessions.All(s => s.State == LanState.Closed));
         Assert.That(games.All(g => g.InSetup && g.Connection == null), Is.True);
@@ -182,7 +192,7 @@ public class LanMatchTests
         void Send(LanMessage message) { wire.Send(message); wire.Flush(); }
         IEnumerator Receive(string kind) => Until(() => wire.Read()?.kind == kind);
 
-        Send(new LanMessage { kind = "hello", version = 1 });
+        Send(new LanMessage { kind = "hello", version = LanMatchSession.ProtocolVersion });
         yield return Receive("welcome");
         Send(new LanMessage { kind = "ready" });
         yield return Receive("snapshot");

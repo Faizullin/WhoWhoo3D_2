@@ -136,6 +136,86 @@ public static class DemoMatchSequence
             "Restart did not restore the opening position.");
         checkpoint("restart");
         yield return Hold(record ? 14 : 1);
+
+        game.StartLocalMatch("terrace6x6", 2);
+        yield return Hold(2);
+        var initialView = camera.transform.rotation;
+        var initialPosition = camera.transform.position;
+        checkpoint("terrace");
+        yield return Hold(record ? 14 : 1);
+        var tread = new SideId(new CellId("cell_2_0_0"), 0);
+        var riser = new SideId(new CellId("cell_2_1_1"), 5);
+        var upper = new SideId(riser.Cell, 0);
+        var route = new[] { new SlotId(riser, 0), new SlotId(riser, 2), new SlotId(riser, 3),
+            new SlotId(tread, 0), new SlotId(tread, 1), new SlotId(tread, 2) };
+        for (int i = 0; i < route.Length; i++)
+        {
+            Require(game.TryPlayerAction(route[i]), "Terrace claim failed at " + route[i]);
+            if (i == route.Length - 1) break;
+            var replies = BoardActions.LegalMoves(game.Board, game.ActivePlayer.Id);
+            var reply = replies.First(id => game.Board.GetCell(id.Side.Cell).Position.Z >= 4 &&
+                game.Board.GetSide(id.Side).Slots.All(s => s.Owner.IsNone));
+            Require(game.TryPlayerAction(reply), "Guest reply failed.");
+        }
+        Require(game.WaveAnimator.IsPlaying, "Expected an animated climb.");
+        yield return Hold(record ? 4 : 1);
+        checkpoint("terrace-wave");
+        float settledBy = Time.realtimeSinceStartup + 10f;
+        while (!game.AcceptsBoardInput && Time.realtimeSinceStartup < settledBy) yield return null;
+        Require(game.AcceptsBoardInput && game.ActivePlayer.Id.Value == 2, "Terrace wave did not settle.");
+        Require(game.Board.GetSlot(new SlotId(upper, 3)).Owner == new PlayerId(1), "Wave missed the upper terrace.");
+        var pointer = new MouseState { position = new Vector2(camera.pixelWidth * .6f, camera.pixelHeight * .45f) };
+        int turnBeforeOrbit = game.TurnNumber;
+        InputSystem.QueueStateEvent(mouse, pointer.WithButton(MouseButton.Right));
+        yield return Hold(2);
+        for (int i = 0; i < 12; i++)
+        {
+            var drag = pointer.WithButton(MouseButton.Right).WithButton(MouseButton.Left);
+            drag.delta = new Vector2(48f, 0);
+            InputSystem.QueueStateEvent(mouse, drag);
+            yield return null;
+        }
+        InputSystem.QueueStateEvent(mouse, pointer);
+        yield return Hold(2);
+        Require(Quaternion.Angle(camera.transform.rotation, initialView) > 100f, "Camera did not orbit.");
+        Require(game.TurnNumber == turnBeforeOrbit, "Camera drag claimed a slot.");
+        checkpoint("terrace-orbit");
+        yield return Hold(record ? 14 : 1);
+
+        var rear = BoardActions.LegalMoves(game.Board, game.ActivePlayer.Id).First(id =>
+        {
+            if (id.Side.LocalIndex != 4) return false;
+            var view = board.GetSlotView(id);
+            var pixel = camera.WorldToScreenPoint(view.transform.position);
+            return camera.pixelRect.Contains(pixel) && !panels.Any(p => p.CoversScreenPoint(pixel)) &&
+                Physics.Raycast(camera.ScreenPointToRay(pixel), out var hit) && hit.collider.GetComponentInParent<SlotView>() == view;
+        });
+        var rearPointer = new MouseState { position = camera.WorldToScreenPoint(board.GetSlotView(rear).transform.position) };
+        InputSystem.QueueStateEvent(mouse, rearPointer);
+        yield return Hold(2);
+        InputSystem.QueueStateEvent(mouse, rearPointer.WithButton(MouseButton.Left));
+        for (int i = 0; i < 12 && game.TurnNumber == turnBeforeOrbit; i++) yield return null;
+        InputSystem.QueueStateEvent(mouse, rearPointer);
+        Require(game.Board.GetSlot(rear).Owner == new PlayerId(2), "The rear riser was not clickable.");
+
+        var keyboard = InputSystem.AddDevice<Keyboard>();
+        try
+        {
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Home));
+            yield return Hold(2);
+            Require(Vector3.Distance(initialPosition, camera.transform.position) < .01f, "Reset lost the fitted view.");
+        }
+        finally { InputSystem.RemoveDevice(keyboard); }
+        while (game.WaveAnimator.IsPlaying) yield return null;
+        var from = game.Board.Cells.Values.SelectMany(c => c.ExposedSides).SelectMany(s => s.Slots)
+            .First(s => BoardActions.TryRelay(game.Board, s.Id, game.ActivePlayer.Id, out _, out _));
+        game.ChooseRelay(true);
+        game.OnSlotClicked(from.Id);
+        checkpoint("relay");
+        yield return Hold(record ? 18 : 1);
+        int seat = game.ActivePlayer.Id.Value;
+        Require(game.ConfirmRelay() && game.Roster.Players[seat - 1].RelaySpent, "Relay did not spend its charge.");
+        yield return Hold(record ? 12 : 1);
     }
 
     private static IEnumerator Hold(int frames)

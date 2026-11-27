@@ -43,16 +43,113 @@ namespace WhoWhoo3D.Input
         private SlotView _hovered;
         private IBoardInputPanel[] _panels;
 
-        private void Start() => _panels = GetComponents<IBoardInputPanel>();
+        private BoardCamera _rig;
+        private SlotView _partner;
+        private bool _dragging, _keepFocus;
+        private Vector2 _focusPosition;
+
+        private void Start()
+        {
+            _panels = GetComponents<IBoardInputPanel>();
+            if (inputCamera != null) _rig = new BoardCamera(inputCamera);
+        }
+
+        private bool Navigate(Vector2 position, bool overPanel)
+        {
+            var mouse = Mouse.current;
+            bool navigating = mouse != null && (mouse.rightButton.isPressed || mouse.middleButton.isPressed);
+            if (navigating && (mouse.rightButton.wasPressedThisFrame || mouse.middleButton.wasPressedThisFrame))
+                _dragging = !overPanel;
+            if (!navigating) _dragging = false;
+            if (_dragging)
+            {
+                Vector2 delta = mouse.delta.ReadValue();
+                if (mouse.rightButton.isPressed) _rig.Orbit(delta.x * .3f, -delta.y * .3f);
+                else _rig.Pan(delta);
+            }
+            var keys = Keyboard.current;
+            bool keyboardMoved = false;
+            if (keys != null && !gameController.InSetup)
+            {
+                float yaw = keys.dKey.ReadValue() - keys.aKey.ReadValue();
+                float pitch = keys.wKey.ReadValue() - keys.sKey.ReadValue();
+                float zoom = keys.eKey.ReadValue() - keys.qKey.ReadValue();
+                float dt = Time.unscaledDeltaTime;
+                if (yaw != 0 || pitch != 0) _rig.Orbit(yaw * 95 * dt, pitch * 65 * dt);
+                if (zoom != 0) _rig.Zoom(zoom * 8 * dt);
+                if (keys.homeKey.wasPressedThisFrame) _rig.Reset();
+                keyboardMoved = yaw != 0 || pitch != 0 || zoom != 0 || keys.homeKey.wasPressedThisFrame;
+            }
+            float scroll = mouse != null && !overPanel ? mouse.scroll.ReadValue().y : 0f;
+            if (scroll != 0) _rig.Zoom(Mathf.Sign(scroll));
+            if (_dragging || keyboardMoved || scroll != 0)
+            {
+                _keepFocus = true;
+                _focusPosition = position;
+            }
+            return navigating || keyboardMoved || scroll != 0;
+        }
+
+        private void OnGUI()
+        {
+            if (!inputCamera || !gameController || !gameController.RenderedBoard ||
+                !gameController.AcceptsBoardInput || Event.current.type != EventType.Repaint) return;
+            if (gameController.ChoosingRelay && gameController.RelaySource is SlotId from &&
+                WhoWhoo3D.Gameplay.Board.BoardActions.TryRelay(gameController.Board, from, gameController.ActivePlayer.Id, out var to, out var bonus))
+            {
+                Mark(gameController.RenderedBoard.GetSlotView(from), true);
+                Mark(gameController.RenderedBoard.GetSlotView(to));
+                Mark(gameController.RenderedBoard.GetSlotView(bonus));
+                return;
+            }
+            if (_hovered && _hovered.IsClaimHighlighted && _partner) Mark(_partner);
+        }
+
+        private void Mark(SlotView view, bool source = false)
+        {
+            if (view == null) return;
+            // Project the marker even when the destination sits behind a riser.
+            var point = inputCamera.WorldToScreenPoint(view.transform.position);
+            if (point.z <= 0) return;
+            float x = Mathf.Clamp(point.x, 18, Screen.width - 18);
+            float y = Mathf.Clamp(Screen.height - point.y, 18, Screen.height - 18);
+            var saved = GUI.color;
+            GUI.color = new Color(1f, .78f, .18f);
+            var ink = Texture2D.whiteTexture;
+            if (source)
+            {
+                GUI.DrawTexture(new Rect(x - 8, y - 8, 16, 2), ink);
+                GUI.DrawTexture(new Rect(x - 8, y + 6, 16, 2), ink);
+                GUI.DrawTexture(new Rect(x - 8, y - 6, 2, 12), ink);
+                GUI.DrawTexture(new Rect(x + 6, y - 6, 2, 12), ink);
+            }
+            else
+            {
+                GUI.DrawTexture(new Rect(x - 6, y - 1, 12, 2), ink);
+                GUI.DrawTexture(new Rect(x - 1, y - 6, 2, 12), ink);
+            }
+            GUI.color = saved;
+        }
 
         private void Update()
         {
             bool clicked = WasClicked(out var clickPosition);
             Vector2 position = clicked ? clickPosition : GetPointerPosition();
+            bool overPanel = OverPanel(position);
+            if (_rig != null && gameController != null)
+            {
+                _rig.Frame(gameController.Board);
+                if (!gameController.InSetup && Navigate(position, overPanel)) return;
+            }
+            if (_keepFocus && !clicked && !overPanel && gameController != null && gameController.AcceptsBoardInput &&
+                (position - _focusPosition).sqrMagnitude < 1f) return;
+            _keepFocus = false;
             bool enabled = gameController == null || gameController.AcceptsBoardInput;
-            var slot = enabled && !OverPanel(position) ? PickSlot(position) : null;
+            var slot = enabled && !overPanel ? PickSlot(position) : null;
             if (_hovered != slot && _hovered != null) _hovered.SetHovered(false);
             _hovered = slot;
+            _partner = slot != null && gameController != null && gameController.RenderedBoard != null && slot.IsClaimHighlighted
+                ? gameController.RenderedBoard.GetSlotView(slot.Partner) : null;
             if (slot == null) return;
 
             slot.SetHovered(true);

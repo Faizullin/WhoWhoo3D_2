@@ -9,6 +9,7 @@ namespace WhoWhoo3D.Gameplay.Player;
 /// </summary>
 public sealed class PlayerState
 {
+    public bool RelaySpent { get; internal set; }
     public PlayerId Id { get; }
     public bool IsAlive { get; set; } = true;
 

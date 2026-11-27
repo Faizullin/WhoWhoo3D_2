@@ -1,12 +1,12 @@
 # WhoWhoo3D gameplay report
 
-[Watch the full match and restart (43.5 s)](demo4x4.mp4)
+[Watch the flat match and vertical demo (53.8 s)](demo4x4.mp4)
 
 Unity 6000.4.5f1 · Demo4x4 · three local players · **P1 won in 25 clicks**.
 
-**Tests passed** — Edit Mode (115), Play Mode (5). The match check compares every displayed legal move with the board rules, exercises map and player selection, and checks the opening state after restart.
+**Tests passed** — Edit Mode (119), Play Mode (5). The match check compares every displayed legal move with the board rules, exercises map and player selection, checks restart, climbs a riser and clicks a rear face after orbiting.
 
-The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera and tile colliders. Setup and restart use the same controller actions as the HUD buttons. Wave playback is accelerated for review. This run covers the local game on macOS. The LAN run below uses two copies of the same player.
+The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, rotates the camera by dragging, clicks the far wall and previews Relay. Setup, restart and Relay confirmation use the HUD’s controller actions. Wave playback is accelerated for review. This run covers the local game on macOS. The LAN run below uses two copies of the same player.
 
 ## Local match setup
 
@@ -43,6 +43,30 @@ The silent video records the game window at 12 fps. A seeded driver sends mouse 
 42.2 s
 
 ![Opening board after Play again](screens/restart.png)
+
+## Terrace 6×6 opening
+
+43.6 s
+
+![Terrace 6×6 opening](screens/terrace.png)
+
+## Expansion from tread to riser
+
+45.1 s
+
+![Expansion from tread to riser](screens/terrace-wave.png)
+
+## The terrace after orbiting to the far side
+
+49.7 s
+
+![The terrace after orbiting to the far side](screens/terrace-orbit.png)
+
+## Relay target preview before confirmation
+
+51.2 s
+
+![Relay target preview before confirmation](screens/relay.png)
 
 ## LAN match
 

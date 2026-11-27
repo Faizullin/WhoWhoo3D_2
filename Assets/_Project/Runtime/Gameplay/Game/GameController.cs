@@ -43,6 +43,9 @@ namespace WhoWhoo3D.Gameplay.Game
         public int PlayerCount => Setup?.Seats.Count ?? playerCount;
         public bool InSetup { get; private set; }
         public IMatchConnection Connection { get; set; }
+        public BoardView RenderedBoard => boardView;
+        public bool ChoosingRelay { get; private set; }
+        public SlotId? RelaySource { get; private set; }
         public bool AcceptsBoardInput => !InSetup && !IsGameOver && !IsPaused && !IsReviewingHistory
             && CurrentPhase is PlayerTurnPhase turn && !turn.IsAiTurn && (Connection?.CanPlay(ActivePlayer.Id) ?? true);
 
@@ -173,6 +176,8 @@ namespace WhoWhoo3D.Gameplay.Game
 
         private void InitializeMatch(BoardModel board, BoardView view, MatchSetup setup, MatchSnapshot snapshot = null)
         {
+            ChoosingRelay = false;
+            RelaySource = null;
             Setup = setup;
             waveAnimator?.StopAndSnapToModel();
             InSetup = false;
@@ -203,6 +208,7 @@ namespace WhoWhoo3D.Gameplay.Game
             ConsecutiveSkippedTurns = snapshot.skipped;
             for (int i = 0; i < Roster.Players.Count; i++)
             {
+                Roster.Players[i].RelaySpent = snapshot.relaySpent?[i] ?? false;
                 Roster.Players[i].IsAlive = snapshot.alive[i];
                 Roster.Players[i].HasHeldTiles = snapshot.held[i];
             }
@@ -334,26 +340,65 @@ namespace WhoWhoo3D.Gameplay.Game
             return Connection?.Submit(claim) ?? TrySubmitClaim(claim);
         }
 
-        public void OnSlotClicked(SlotId slotId) => TryPlayerAction(slotId);
+        public void ChooseRelay(bool choose)
+        {
+            ChoosingRelay = choose && AcceptsBoardInput && !ActivePlayer.RelaySpent;
+            RelaySource = null;
+            ShowTurnHints(AcceptsBoardInput);
+        }
+
+        public void OnSlotClicked(SlotId slotId)
+        {
+            if (!ChoosingRelay) { TryPlayerAction(slotId); return; }
+            if (AcceptsBoardInput && BoardActions.TryRelay(Board, slotId, ActivePlayer.Id, out _, out _))
+                RelaySource = slotId;
+        }
+
+        public bool ConfirmRelay()
+        {
+            if (!ChoosingRelay || !AcceptsBoardInput || RelaySource is not SlotId from) return false;
+            var command = new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, from, true);
+            bool submitted = Connection?.Submit(command) ?? TrySubmitClaim(command);
+            ChooseRelay(false);
+            return submitted;
+        }
 
         /// <summary>Accepts at most one claim per turn. Called on the Unity main thread.</summary>
         public bool TrySubmitClaim(ClaimSlotCommand command)
         {
             if (InSetup || _gameOver || IsPaused || IsReviewingHistory ||
                 _currentPhase is not PlayerTurnPhase turn || turn.IsComplete ||
-                command.Actor != ActivePlayer.Id || command.TurnNumber != TurnNumber ||
-                !BoardActions.CanClaim(Board, command.Slot, command.Actor))
+                command.Actor != ActivePlayer.Id || command.TurnNumber != TurnNumber)
                 return false;
 
+            SlotStateChange[] changes;
+            if (command.Relay)
+            {
+                if (ActivePlayer.RelaySpent || !BoardActions.TryRelay(Board, command.Slot, command.Actor, out var to, out var bonus))
+                    return false;
+                ActivePlayer.RelaySpent = true;
+                changes = new[] {
+                    new SlotStateChange(command.Slot, command.Actor, PlayerId.None, SlotChangeCause.Released, null),
+                    new SlotStateChange(to, PlayerId.None, command.Actor, SlotChangeCause.Claimed, command.Slot),
+                    new SlotStateChange(bonus, PlayerId.None, command.Actor, SlotChangeCause.Claimed, null)
+                };
+            }
+            else
+            {
+                if (!BoardActions.CanClaim(Board, command.Slot, command.Actor)) return false;
+                changes = new[] { new SlotStateChange(command.Slot, PlayerId.None, command.Actor, SlotChangeCause.Claimed, null) };
+            }
+            ChoosingRelay = false;
+            RelaySource = null;
             turn.CompleteClaim();
-            Board.SetOwner(command.Slot, command.Actor);
+            foreach (var change in changes) Board.SetOwner(change.Slot, change.After);
             NotifyTurnPlayed();
             History.Record(new HistoryEntry(
-                HistoryKind.Claim, TurnNumber, command.Actor, $"{command.Actor} claimed {command.Slot}",
-                new[] { new SlotStateChange(command.Slot, PlayerId.None, command.Actor, SlotChangeCause.Claimed, Origin: null) }));
+                command.Relay ? HistoryKind.Relay : HistoryKind.Claim, TurnNumber, command.Actor,
+                $"{command.Actor} {(command.Relay ? "relayed from" : "claimed")} {command.Slot}", changes));
 
             RefreshBoardView();
-            Debug.Log($"{command.Actor} claimed {command.Slot}");
+            Debug.Log($"{command.Actor} {(command.Relay ? "relayed from" : "claimed")} {command.Slot}");
             AdvanceWhileComplete();
             return true;
         }
@@ -494,8 +539,11 @@ namespace WhoWhoo3D.Gameplay.Game
             var entries = History.Entries;
 
             for (int i = entries.Count - 1; i > History.Cursor; i--)
+            {
+                if (entries[i].Kind == HistoryKind.Relay) Roster.Players[entries[i].Actor.Value - 1].RelaySpent = false;
                 foreach (var change in entries[i].Changes)
                     Board.SetOwner(change.Slot, change.Before);
+            }
 
             History.TruncateAfterCursor();
 
@@ -526,7 +574,7 @@ namespace WhoWhoo3D.Gameplay.Game
         public void ShowTurnHints(bool visible)
         {
             if (boardView != null && Board != null)
-                boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None);
+                boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None, ChoosingRelay);
         }
 
         public void RefreshBoardView()

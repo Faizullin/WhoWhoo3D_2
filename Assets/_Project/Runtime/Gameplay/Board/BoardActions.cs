@@ -37,6 +37,24 @@ public static class BoardActions
         return slot != null && slot.IsNeutral && CanSelectSide(side, player);
     }
 
+    // Relay moves one owned tile across its edge and reinforces a second white edge on the landing face.
+    public static bool TryRelay(BoardModel board, SlotId from, PlayerId actor, out SlotId landing, out SlotId bonus)
+    {
+        landing = bonus = default;
+        if (actor.IsNone || !board.Cells.TryGetValue(from.Side.Cell, out var cell) ||
+            from.Side.LocalIndex < 0 || from.Side.LocalIndex >= cell.Sides.Count) return false;
+        var source = cell.GetSide(from.Side.LocalIndex).GetSlot(from.Edge);
+        if (source == null || source.Owner != actor || !CanClaim(board, source.Partner, actor)) return false;
+        landing = source.Partner;
+        foreach (var slot in board.GetSide(landing.Side).Slots)
+        {
+            if (slot.Id == landing || !slot.IsNeutral) continue;
+            bonus = slot.Id;
+            return true;
+        }
+        return false;
+    }
+
     /// <summary>
     /// Claimable slots in deterministic (cell, side, edge) order.
     /// </summary>

@@ -17,6 +17,7 @@ public sealed class MatchSnapshot
     public int[] owners;
     public bool[] alive;
     public bool[] held;
+    public bool[] relaySpent;
 
     private static IEnumerable<Slot> Slots(BoardModel board) =>
         board.Cells.OrderBy(p => p.Key.Value, StringComparer.Ordinal).SelectMany(p => p.Value.Sides)
@@ -28,6 +29,7 @@ public sealed class MatchSnapshot
         skipped = game.ConsecutiveSkippedTurns, finished = game.IsGameOver, winner = game.Winner.Value,
         owners = Slots(game.Board).Select(slot => slot.Owner.Value).ToArray(),
         alive = game.Roster.Players.Select(p => p.IsAlive).ToArray(),
+        relaySpent = game.Roster.Players.Select(p => p.RelaySpent).ToArray(),
         held = game.Roster.Players.Select(p => p.HasHeldTiles).ToArray()
     };
 
@@ -35,6 +37,7 @@ public sealed class MatchSnapshot
     {
         var slots = Slots(board).ToArray();
         if (owners == null || slots.Length != owners.Length || alive?.Length != count || held?.Length != count ||
+            (relaySpent != null && relaySpent.Length != count) ||
             turn < 1 || active < 1 || active > count || skipped < 0 || skipped > count ||
             winner < 0 || winner > count || (!finished && (winner != 0 || !alive[active - 1])) ||
             owners.Any(id => id < 0 || id > count))

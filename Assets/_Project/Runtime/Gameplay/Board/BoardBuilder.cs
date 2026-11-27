@@ -81,7 +81,12 @@ public sealed class BoardBuilder
     /// </summary>
     public BoardModel Build(Predicate<int> faceFilter = null)
     {
-        faceFilter ??= AllFaces;
+        return BuildSurface(faceFilter == null ? (_, _) => true : (_, face) => faceFilter(face));
+    }
+
+    public BoardModel BuildSurface(Func<Coord, int, bool> faceFilter)
+    {
+        if (faceFilter == null) throw new ArgumentNullException(nameof(faceFilter));
 
         var board = new BoardModel();
         var ordered = _cubes.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z).ToList();
@@ -136,7 +141,7 @@ public sealed class BoardBuilder
     /// A pair is only created when both ends pass <paramref name="faceFilter"/>, which is
     /// what keeps a filtered board free of lone slots.
     /// </summary>
-    private void WireSurface(BoardModel board, List<Coord> ordered, Predicate<int> faceFilter)
+    private void WireSurface(BoardModel board, List<Coord> ordered, Func<Coord, int, bool> faceFilter)
     {
         foreach (var coord in ordered)
         {
@@ -144,7 +149,7 @@ public sealed class BoardBuilder
 
             for (int face = 0; face < FaceCount; face++)
             {
-                if (cell.GetSide(face).IsInterior || !faceFilter(face)) continue;
+                if (cell.GetSide(face).IsInterior || !faceFilter(coord, face)) continue;
 
                 var edges = CubeGeometry.EdgeNeighbours(face);
                 for (int edge = 0; edge < edges.Length; edge++)
@@ -164,7 +169,7 @@ public sealed class BoardBuilder
 
     private bool TryResolvePartner(
         BoardModel board, Coord coord, int face, int neighbourFace,
-        Predicate<int> faceFilter, out SlotId partner)
+        Func<Coord, int, bool> faceFilter, out SlotId partner)
     {
         partner = default;
         var cell = board.GetCell(IdFor(coord));
@@ -172,7 +177,7 @@ public sealed class BoardBuilder
         if (!cell.GetSide(neighbourFace).IsInterior)
         {
             // Around this cube's own corner onto the adjoining face.
-            if (!faceFilter(neighbourFace)) return false;
+            if (!faceFilter(coord, neighbourFace)) return false;
 
             partner = new SlotId(
                 new SideId(cell.Id, neighbourFace),
@@ -190,12 +195,12 @@ public sealed class BoardBuilder
             // Three cubes meet at a concave edge. Pair the tread with the exposed riser.
             var upper = other.Step(CubeGeometry.FaceStep(face));
             int riser = CubeGeometry.OppositeFace(neighbourFace);
-            if (!faceFilter(riser)) return false;
+            if (!faceFilter(upper, riser)) return false;
             partner = new SlotId(new SideId(IdFor(upper), riser),
                 CubeGeometry.EdgeIndexOf(riser, CubeGeometry.OppositeFace(face)));
             return true;
         }
-        if (!faceFilter(face)) return false;
+        if (!faceFilter(other, face)) return false;
 
         partner = new SlotId(
             new SideId(otherCell.Id, face),

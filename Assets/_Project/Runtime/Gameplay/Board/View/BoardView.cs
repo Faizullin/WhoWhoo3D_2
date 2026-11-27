@@ -30,16 +30,21 @@ namespace WhoWhoo3D.Gameplay.Board.View
             Physics.SyncTransforms();
         }
 
-        public void ShowTurnHints(BoardModel board, PlayerId player)
+        public bool HasHighlightedTargets { get; private set; }
+
+        public void ShowTurnHints(BoardModel board, PlayerId player, bool relay = false)
         {
+            HasHighlightedTargets = false;
             foreach (var cell in board.Cells.Values)
                 foreach (var side in cell.ExposedSides)
                 {
                     bool locked = !player.IsNone && !BoardActions.CanSelectSide(side, player);
                     foreach (var slot in side.Slots)
                     {
-                        bool legal = !player.IsNone && BoardActions.CanClaim(board, slot.Id, player);
-                        GetSlotView(slot.Id)?.SetTurnHint(legal, locked);
+                        bool legal = !player.IsNone && (relay ? BoardActions.TryRelay(board, slot.Id, player, out _, out _)
+                            : BoardActions.CanClaim(board, slot.Id, player));
+                        HasHighlightedTargets |= legal;
+                        GetSlotView(slot.Id)?.SetTurnHint(legal, locked, relay && legal);
                     }
                 }
         }

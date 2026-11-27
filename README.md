@@ -2,13 +2,17 @@
 
 A turn-based strategy game for two to four seats. Play solo against computer opponents, share one screen, or host a match for players on your local network. Claim a mint tile on an open cube face. Filling the face sends its tiles across the adjoining edges and can start a chain reaction. The last player holding tiles wins.
 
-[![Opening board of a three-player local match](docs/reports/screens/opening.png)](docs/reports/README.md)
+[![Three-level terrace in a two-player match](docs/reports/screens/terrace.png)](docs/reports/README.md)
 
-[Watch a complete match](docs/reports/demo4x4.mp4) · [Browse the gameplay report and LAN screenshots](docs/reports/README.md)
+[Watch a complete match and the terrace demo](docs/reports/demo4x4.mp4) · [Browse the gameplay report and LAN screenshots](docs/reports/README.md)
 
 ## Play in Unity
 
 Open the project in Unity **6000.4.5f1** and play `Assets/_Project/Scenes/Demo4x4.unity`. For shared-screen play, select **Hot-seat**, choose a map and player count, then select **Start match**. In **Solo**, you play P1 and the computer takes the remaining seats. Mint tiles accept a claim, a gold outline identifies the hovered legal tile, and gray tiles are locked by another player. Press **F3** in a local match to show the debug timeline. After victory, **Play again** restores the selected map and roster.
+
+Select **terrace6x6** for a three-level board with playable walls. Right-drag to orbit, middle-drag to pan, scroll to zoom and press **Home** to fit the board. **A/D** rotate, **W/S** tilt and **Q/E** zoom. The gold cross marks the hovered tile’s paired edge.
+
+Each seat has one **Relay** per match. Select it, pick a gold-rimmed owned tile and preview the two marked destinations. Confirm to vacate your tile and claim both white tiles across its edge. A full destination face expands immediately. Cancel returns to normal claims and keeps the charge.
 
 ## Host or join on the same network
 
@@ -26,6 +30,6 @@ If a guest loses its connection, the room waits. Select **Reconnect** in the sam
 | LAN | Discoverable player-hosted rooms for 2–4 seats, direct joining, turn validation, reconnect and rematch |
 | Verification | Unity rule tests, a saved-scene pointer test, TCP Play Mode tests, a two-process macOS gameplay report, and [isolated Linux LAN tests](docs/reports/LAN.md) |
 | Map editor | Separate authoring demo with place, erase, paint, save and load |
-| Next implementation | Build a stepped 6×6 demo with orbit, pan and zoom. Then add an ability inventory, redesign the adaptive HUD and polish wave animation. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
+| Next implementation | Add Freeze with a visible expiry, compare Beacon and other ability prototypes, then redesign the adaptive HUD and animate waves crossing edges. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
 
 The capture command and its requirements are in the [gameplay report](docs/reports/README.md). Board formats and expansion rules are in the [map schema](docs/MAP_SCHEMA.md) and [wave specification](docs/WAVE_SPEC.md).

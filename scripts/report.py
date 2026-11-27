@@ -24,6 +24,10 @@ SCENES = {
     "wave": "Expansion across neighboring faces",
     "victory": "Match result",
     "restart": "Opening board after Play again",
+    "terrace": "Terrace 6×6 opening",
+    "terrace-wave": "Expansion from tread to riser",
+    "terrace-orbit": "The terrace after orbiting to the far side",
+    "relay": "Relay target preview before confirmation",
 }
 FPS = 12
 
@@ -154,13 +158,15 @@ def main():
             raise RuntimeError("Encoded video failed validation.")
         report = [
             "# WhoWhoo3D gameplay report", "",
-            f"[Watch the full match and restart ({float(stream['duration']):.1f} s)](demo4x4.mp4)", "",
+            f"[Watch the flat match and vertical demo ({float(stream['duration']):.1f} s)](demo4x4.mp4)", "",
             f"Unity {version} · Demo4x4 · three local players · **P{result[2]} won in {result[1]} clicks**.", "",
             f"**Tests passed** — Edit Mode ({edit}), Play Mode ({play}). "
             "The match check compares every displayed legal move with the board rules, exercises map and player selection, "
-            "and checks the opening state after restart.", "",
+            "checks restart, climbs a riser and clicks a rear face after orbiting.", "",
             "The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera "
-            "and tile colliders. Setup and restart use the same controller actions as the HUD buttons. "
+            "and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, "
+            "rotates the camera by dragging, clicks the far wall and previews Relay. "
+            "Setup, restart and Relay confirmation use the HUD’s controller actions. "
             "Wave playback is accelerated for review. This run covers the local game on macOS. "
             "The LAN run below uses two copies of the same player.", "",
         ]

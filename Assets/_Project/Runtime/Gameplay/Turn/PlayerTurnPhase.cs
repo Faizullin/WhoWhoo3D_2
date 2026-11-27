@@ -1,4 +1,5 @@
 using UnityEngine;
+using WhoWhoo3D.Gameplay.Board;
 using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Ai;
 using WhoWhoo3D.Gameplay.Game;
@@ -60,6 +61,18 @@ public sealed class PlayerTurnPhase : IGamePhase
     private void ExecuteAiMove()
     {
         var actor = _game.ActivePlayer.Id;
+        if (!_game.ActivePlayer.RelaySpent)
+        {
+            foreach (var cell in _game.Board.Cells.Values)
+            foreach (var side in cell.ExposedSides)
+            foreach (var source in side.Slots)
+            {
+                if (!BoardActions.TryRelay(_game.Board, source.Id, actor, out var to, out _)) continue;
+                var landing = _game.Board.GetSide(to.Side);
+                if (landing.OwnedCount(actor) + 2 == landing.SlotCount &&
+                    _game.TrySubmitClaim(new ClaimSlotCommand(actor, _game.TurnNumber, source.Id, true))) return;
+            }
+        }
         if (_ai.TryChooseMove(_game.Board, actor, out var slot))
         {
             _game.TrySubmitClaim(new ClaimSlotCommand(actor, _game.TurnNumber, slot));

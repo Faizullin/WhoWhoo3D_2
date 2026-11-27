@@ -33,7 +33,7 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 | --- | --- |
 | Domain | Board topology (`Cell`, `Side`, `Slot`), map serialization, deterministic wave simulation, and the `Match/ClaimSlotCommand` value type. The assembly sets `noEngineReferences`. |
 | Gameplay | Match setup and orchestration in `Game/`, roster in `Player/` and phases in `Turn/`. Board views, wave playback, map loading and history also live here. |
-| Input | Resolves a pointer to a slot and submits a local action to the controller. |
+| Input | Fits the local camera to the loaded board, handles orbit/pan/zoom and resolves a pointer to a slot. Both views of a LAN match can navigate independently. |
 | UI | Match setup, LAN room controls, scoreboard, results and local debug timeline. |
 | Networking | TCP connections, room membership, seat assignment and ordered delivery of accepted claims. Depends on Gameplay and Domain. |
 | MapEditor | Map authoring and its HUD. The editor builds boards using the same `BoardBuilder` as the game tests. |
@@ -51,7 +51,7 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 
 `MatchSetup` stores the map and an immutable ordered list of seat controllers. Seat one belongs to P1. `StartMatch(setup)` creates the board and roster. Restart reloads the map using the same setup. Serialized scene settings supply defaults for scenes and the local setup screen.
 
-Pointer input checks the active seat before calling `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number and slot. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
+Pointer input checks the active seat before calling `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number, slot and Relay flag. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
 
 ### LAN host and guest
 
@@ -63,7 +63,7 @@ While the initial lobby has open seats, `LanRoomAdvertiser` sends one announceme
 
 The host runs a separate `GameController` without a view or wave animator. A move must match its connection’s seat, the current round, the active player, the expected turn and a legal slot. The host assigns a sequence number to each accepted claim. Every visible board, including P1’s, processes the same claims in order and can finish its own animations between moves. Offline modes call the same rules directly.
 
-When a guest drops during play, the room pauses. The running guest keeps a private seat token in memory. Once all seats reconnect, the host sends a settled snapshot with ownership, active seat, turn, elimination state, skipped turns and result. Each view rebuilds from the agreed map and resumes at the host’s sequence number. Starting a rematch increments the round and resets the sequence. The room lasts for the lifetime of the host process. This transport is for a trusted local network.
+When a guest drops during play, the room pauses. The running guest keeps a private seat token in memory. Once all seats reconnect, the host sends a settled snapshot with ownership, active seat, turn, Relay charges, elimination state, skipped turns and result. Each view rebuilds from the agreed map and resumes at the host’s sequence number. Starting a rematch increments the round and resets the sequence. The room lasts for the lifetime of the host process. This transport is for a trusted local network.
 
 ## Key systems
 
@@ -95,17 +95,11 @@ types — it just drains whatever is already complete. Two constraints keep this
 `AdvanceWhileComplete` is iterative and capped (`MaxPhaseChain`) so a pair of phases that
 complete each other cannot freeze the editor.
 
-### 2. Ability system (planned)
+### 2. Ability inventory
 
-`AbilityDefinition` ScriptableObject + `IAbilityExecutor`.
+Relay uses the same turn submission path as a normal claim. The preview and authoritative validation both call `BoardActions.TryRelay`. Its only input target is an owned slot. The paired edge and ascending edge order determine the two destinations on every peer. The controller spends the seat’s charge and records all three tile changes in one history entry before starting wave resolution. Canceling the preview changes only local selection.
 
-```
-AbilityDefinition (SO):  cost, cooldown, range, icon, executor type
-PlayerInventory:         List<AbilityInstance>
-AbilitySystem.Execute(player, ability, target)
-```
-
-Designers create abilities as assets without code changes.
+`PlayerState.RelaySpent` tracks the charge and `MatchSnapshot.relaySpent` persists it across reconnects. LAN protocol 2 carries the action flag in submissions and accepted turns. The computer can use the same action to complete a face. The second ability introduces typed action IDs and per-seat inventories as described in the [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 
 ### 3. Board / Wave System
 
@@ -165,6 +159,6 @@ The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery
 
 The discovery tests join a room by its advertised port, track changing seat counts, expire filled and closed rooms, and filter incompatible announcements. The standalone report captures the join screen before the guest selects the discovered room.
 
-Separate-interface and blocked-UDP verification runs through the Linux test player. The next feature slice pairs a stepped map with a local camera rig, followed by deterministic abilities, an adaptive HUD and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
+Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The next slice adds a timed effect to the ability inventory, followed by an adaptive HUD and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 
 The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).
