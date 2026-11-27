@@ -50,7 +50,14 @@ public static class DemoMatchSequence
             Require(game.PlayerCount == count && game.MapName == "sample", "Restart lost the selected setup.");
         }
 
-        game.StartLocalMatch("demo4x4", 3);
+        if (!record)
+        {
+            game.StartMatch(new MatchSetup("demo4x4", new SeatControl[3]));
+            game.OpenSetup();
+            yield return null;
+            yield return null;
+        }
+        yield return CompactHudSequence.ClickControl(game, mouse, "Start match");
         yield return null;
         Require(game.Board.Cells.Count == 16 && game.Roster.Players.Count == 3, "Unexpected demo setup.");
         var opening = game.Board.Cells.Values.SelectMany(c => c.ExposedSides)
@@ -130,8 +137,7 @@ public static class DemoMatchSequence
         Debug.Log($"Demo match completed in {moves} clicks. Winner P{game.Winner.Value}.");
         checkpoint("victory");
         yield return Hold(record ? 18 : 1);
-        game.RestartMatch();
-        yield return null;
+        yield return CompactHudSequence.ClickControl(game, mouse, "Play again");
         Require(game.TurnNumber == 1 && !game.IsGameOver && game.History.Entries.Count == 0 &&
             game.ActivePlayer.Id == new PlayerId(1) && opening.All(pair => game.Board.GetSlot(pair.Key)?.Owner == pair.Value),
             "Restart did not restore the opening position.");

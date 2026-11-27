@@ -3,7 +3,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Domain.Match;
@@ -30,26 +29,17 @@ internal sealed class MatchHud
     private readonly Control _supply, _confirm, _cancel, _leave;
     private readonly StringBuilder _effects = new();
     private bool _collecting;
-    private int _lastTurn;
+    private int _lastTurn, _lastSeat;
+    private bool _hotSeat;
+    private PlayerId _localHuman;
+    private float _handoffUntil;
     private BoardModel _lastBoard;
 
     public MatchHud(Transform owner, GameController game, LanMatchSession session)
     {
         _game = game;
         _session = session;
-        var root = Node(owner, "Match HUD");
-        _canvas = root.gameObject.AddComponent<Canvas>();
-        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 12;
-        root.gameObject.AddComponent<GraphicRaycaster>();
-        if (EventSystem.current == null)
-        {
-            var events = new GameObject("HUD input", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            events.transform.SetParent(owner, false);
-        }
-
-        _safe = Node(root, "Safe area");
-        _safe.pivot = new Vector2(.5f, .5f);
+        _canvas = CreateCanvas(owner, "Match HUD", out _safe);
         _header = Panel(_safe, "Turn and scores", Surface).rectTransform;
         _turn = Label(_header, "Turn", 12, Mint, true);
         _turn.characterSpacing = 6;
@@ -81,14 +71,19 @@ internal sealed class MatchHud
         _supply = new Control(_tray, "Collect supply", () => _collecting = true, true);
         _confirm = new Control(_tray, "Confirm", () => _game.ConfirmAbility(), true);
         _cancel = new Control(_tray, "Cancel", Cancel);
-        root.gameObject.SetActive(false);
+        SetVisible(false);
     }
 
     public void SetVisible(bool visible)
     {
         if (_canvas.gameObject.activeSelf == visible) return;
         _canvas.gameObject.SetActive(visible);
-        if (!visible) _collecting = false;
+        if (!visible)
+        {
+            _collecting = false;
+            _handoffUntil = 0;
+            _lastBoard = null;
+        }
     }
 
     public bool Covers(Vector2 point) => _canvas.isActiveAndEnabled &&
@@ -101,24 +96,49 @@ internal sealed class MatchHud
         _game.SelectAbility(MatchAction.Claim);
     }
 
-    public void Refresh(float uiScale, bool solo, bool timelineOpen)
+    public void Refresh(float uiScale, bool timelineOpen)
     {
         if (_lastTurn != _game.TurnNumber || _lastBoard != _game.Board) _collecting = false;
+        if (_lastBoard != _game.Board)
+        {
+            _hotSeat = _session.State == LanState.Closed;
+            _localHuman = PlayerId.None;
+            foreach (var player in _game.Roster.Players)
+            {
+                if (player.IsAi) _hotSeat = false;
+                else if (_localHuman.IsNone) _localHuman = player.Id;
+            }
+        }
+        if (_lastBoard != _game.Board || !_hotSeat)
+            _handoffUntil = 0;
+        else if (_lastTurn != _game.TurnNumber && _lastSeat != _game.ActivePlayer.Id.Value)
+            _handoffUntil = Time.unscaledTime + 2f;
         _lastTurn = _game.TurnNumber;
+        _lastSeat = _game.ActivePlayer.Id.Value;
         _lastBoard = _game.Board;
-        var area = Screen.safeArea;
-        var viewport = new HudViewport(area, Screen.height, uiScale);
-        _canvas.scaleFactor = viewport.Scale;
-        _safe.anchorMin = new Vector2(area.xMin / Screen.width, area.yMin / Screen.height);
-        _safe.anchorMax = new Vector2(area.xMax / Screen.width, area.yMax / Screen.height);
-        _safe.offsetMin = _safe.offsetMax = Vector2.zero;
-        float width = Mathf.Min(viewport.Size.x - 20, 796);
-        float left = (viewport.Size.x - width) / 2;
+        var size = Fit(_canvas, _safe, uiScale);
+        float width = Mathf.Min(size.x - 20, 796);
+        float left = (size.x - width) / 2;
         DrawHeader(left, width);
         _tray.gameObject.SetActive(!timelineOpen);
         if (timelineOpen) return;
-        DrawTray(left, width, viewport.Size.y, solo);
-        Navigate();
+        var selected = EventSystem.current?.currentSelectedGameObject;
+        bool hudFocused = selected != null && selected.transform.IsChildOf(_tray);
+        DrawTray(left, width, size.y);
+        if (hudFocused && !selected.activeInHierarchy)
+        {
+            if (!_collecting && _cancel.Button.isActiveAndEnabled) _cancel.Button.Select();
+            else
+            {
+                foreach (var choice in _collecting ? _refill : _cards)
+                {
+                    if (!choice.Button.isActiveAndEnabled || !choice.Button.IsInteractable()) continue;
+                    choice.Button.Select();
+                    break;
+                }
+            }
+        }
+        Navigate(_canvas);
     }
 
     private void DrawHeader(float left, float width)
@@ -136,7 +156,8 @@ internal sealed class MatchHud
         _turn.text = $"TURN  {_game.TurnNumber:00}";
         var active = _game.ActivePlayer;
         _status.text = _game.IsReviewingHistory ? "Reviewing" : _game.IsPaused ? "Paused" :
-            _game.CurrentPhase is BoardWavePhase ? "Wave in motion" : $"{active.Id} to play";
+            _game.CurrentPhase is BoardWavePhase ? "Wave in motion" :
+            Time.unscaledTime < _handoffUntil ? $"Pass to {active.Id}" : $"{active.Id} to play";
         for (int i = 0; i < _seats.Length; i++)
         {
             _seats[i].gameObject.SetActive(i < count);
@@ -161,10 +182,11 @@ internal sealed class MatchHud
         }
     }
 
-    private void DrawTray(float left, float width, float screenHeight, bool solo)
+    private void DrawTray(float left, float width, float screenHeight)
     {
         var seat = _session.LocalSeat > 0 ? _game.Roster.Players[_session.LocalSeat - 1] :
-            solo ? _game.Roster.Players[0] : _game.ActivePlayer;
+            !_hotSeat && _game.ActivePlayer.IsAi && !_localHuman.IsNone ?
+                _game.Roster.Players[_localHuman.Value - 1] : _game.ActivePlayer;
         bool canPlay = seat == _game.ActivePlayer && _game.AcceptsBoardInput;
         bool supplyMode = _game.Setup.Supply;
         bool supplyReady = supplyMode && seat.Inventory.SupplyReady && canPlay;
@@ -245,22 +267,6 @@ internal sealed class MatchHud
             default:
                 return picked ? "Your boxed tile empties. The two marked tiles gain your color." :
                     "Pick a gold-rimmed tile to move across its edge.";
-        }
-    }
-
-    private void Navigate()
-    {
-        var keys = Keyboard.current;
-        if (keys == null || !keys.tabKey.wasPressedThisFrame || EventSystem.current == null) return;
-        var list = _canvas.GetComponentsInChildren<Button>();
-        var selected = EventSystem.current.currentSelectedGameObject;
-        int index = System.Array.FindIndex(list, b => b.gameObject == selected);
-        int direction = keys.shiftKey.isPressed ? -1 : 1;
-        if (index < 0 && direction < 0) index = 0;
-        for (int i = 0; i < list.Length; i++)
-        {
-            index = (index + direction + list.Length) % list.Length;
-            if (list[index].IsInteractable()) { list[index].Select(); break; }
         }
     }
 }

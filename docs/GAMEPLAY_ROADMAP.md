@@ -41,7 +41,9 @@ Freeze and Beacon are playable. Phase, Bank, Switchback and Pass are candidates 
 
 The shared scene now uses a safe-area uGUI canvas and TextMeshPro for live matches. The header shows the turn, scores and public charge counts. The lower tray holds the local seat's cards, supply choice and target preview. Freeze identifies the selected cube and the seat after which it thaws. Narrow layouts stack the controls beneath the instructions. The saved-scene pointer test covers targeting, orbiting, canceling and confirming a four-seat Freeze. The capture script repeats that interaction in an 800×480 standalone window. [Gameplay report](reports/README.md)
 
-**Next implementation.** Bring match setup, the LAN browser and results onto the same controls and typography. Add a hot-seat handoff and check keyboard focus through setup, play and rematch. Keep HUD hit areas aligned with their drawn panels as screen dimensions and safe insets change.
+Setup, LAN discovery, the waiting room and results now use the same controls and typography as the live HUD. Tab and Shift+Tab reach enabled buttons and text fields. The result initially focuses Play again for local players and hosts, or Leave room for guests. A brief “Pass to P2” prompt identifies the next hot-seat player while the board stays playable. Saved-scene checks cover keyboard setup, ability cancellation, replay, returning to setup, and joining and leaving a discovered room.
+
+**Next implementation.** Extend the automated layout captures across the screen sizes and text scales below. Check the full four-seat room and longest ability prompts first. Then begin the paired-edge wave animation with a tread-to-wall transition on the terrace.
 
 **Acceptance.** Automatically capture setup, a four-seat room, ability targeting and victory at 800×480, 1280×720, 1920×1080 and 3440×1440, plus a 360×640 portrait layout probe with simulated safe insets. Repeat with large text. Check focused controls, wrapping, overlap, click-through and the ability to cancel using the keyboard. Portrait checks assess layout only.
 

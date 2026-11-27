@@ -15,7 +15,7 @@ public sealed class LanMatchRecorder : MonoBehaviour
     private bool _capturedTurn, _finished, _foundRoom;
     private string _roomName;
     private float _deadline, _searchUntil;
-    private bool _probe;
+    private bool _probe, _capturedLobby;
     private string _directAddress;
 
 #if UNITY_STANDALONE_LINUX
@@ -84,6 +84,11 @@ public sealed class LanMatchRecorder : MonoBehaviour
             }
             _session.Join(room);
             return;
+        }
+        if (!_probe && _role == "host" && !_capturedLobby && _session.State == LanState.Lobby)
+        {
+            ScreenCapture.CaptureScreenshot(Path.Combine(_directory, "lan-lobby.png"));
+            _capturedLobby = true;
         }
         if (_session.State != LanState.Playing) return;
         if (_game.IsGameOver)

@@ -20,8 +20,7 @@ public static class CompactHudSequence
         game.StartMatch(new MatchSetup("terrace6x6", true, new SeatControl[4]));
         yield return null;
         yield return null;
-        var canvas = game.GetComponentInChildren<Canvas>();
-        var safe = canvas.transform.Find("Safe area");
+        var safe = game.transform.Find("Match HUD/Safe area");
         var header = (RectTransform)safe.Find("Turn and scores");
         var tray = (RectTransform)safe.Find("Ability tray");
         var panels = game.GetComponents<IBoardInputPanel>();
@@ -107,7 +106,14 @@ public static class CompactHudSequence
         throw new InvalidOperationException("No visible legal Freeze target");
     }
 
-    private static IEnumerator Click(Mouse mouse, Vector2 point)
+    internal static IEnumerator ClickControl(GameController game, Mouse mouse, string name)
+    {
+        var rect = game.GetComponentsInChildren<Button>().Single(button => button.name == name)
+            .GetComponent<RectTransform>();
+        return Click(mouse, rect.TransformPoint(rect.rect.center));
+    }
+
+    internal static IEnumerator Click(Mouse mouse, Vector2 point)
     {
         var state = new MouseState { position = point };
         InputSystem.QueueStateEvent(mouse, state);

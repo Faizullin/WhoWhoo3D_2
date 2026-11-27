@@ -60,10 +60,11 @@ The current board uses primitive cubes and code-spawned tiles. Mint highlights i
 
 ### UI interaction
 - [x] Replace the live scoreboard and inventory with a safe-area uGUI/TextMeshPro HUD. Exercise four-seat Freeze at 800×480.
-- [ ] Migrate setup, LAN room browser and results to the shared controls. The local debug timeline still uses IMGUI.
+- [x] Use shared controls and keyboard focus in setup, the LAN browser, waiting room and results.
+- [ ] Capture the full screen-size and text-scale matrix in the [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 - [x] Hover and selection feedback on tiles — the single biggest legibility gap.
 - [x] Click affordances: highlight legal slots for the active player, dim locked faces.
-- [ ] Turn hand-off screen for hot-seat play, so players know the turn changed.
+- [x] Show the next player in the hot-seat header as soon as control changes hands.
 - [ ] Wave playback controls surfaced properly rather than as a debug bar.
 
 Turn handoff and board readability also support online play and future target selection.

@@ -5,6 +5,7 @@
         "WhoWhoo3D.Domain",
         "WhoWhoo3D.Gameplay",
         "UnityEngine.UI",
+        "Unity.TextMeshPro",
         "Unity.InputSystem"
     ],
     "optionalUnityReferences": ["TestAssemblies"],

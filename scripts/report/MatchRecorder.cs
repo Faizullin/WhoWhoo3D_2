@@ -39,9 +39,10 @@ public class MatchRecorder : MonoBehaviour
         var mouse = InputSystem.AddDevice<Mouse>();
         mouse.MakeCurrent();
         bool compact = Environment.GetEnvironmentVariable("WHOWHOO_COMPACT_HUD") == "1";
-        if (!compact) StartCoroutine(RecordFrames());
+        if (compact) yield return CaptureCompact("compact-setup");
+        else StartCoroutine(RecordFrames());
         var sequence = compact ? CompactHudSequence.Run(game, board, Camera.main, mouse,
-            () => StartCoroutine(CaptureCompact())) :
+            () => StartCoroutine(CaptureCompact("compact-freeze"))) :
             DemoMatchSequence.Run(game, board, Camera.main, mouse, name => _checkpoint = name, true);
         // Unroll nested iterators so assertion failures also reach the calling script.
         var stack = new Stack<IEnumerator>();
@@ -69,7 +70,7 @@ public class MatchRecorder : MonoBehaviour
         Application.Quit(0);
     }
 
-    private IEnumerator CaptureCompact()
+    private IEnumerator CaptureCompact(string name)
     {
         yield return _endOfFrame;
         var image = ScreenCapture.CaptureScreenshotAsTexture();
@@ -78,7 +79,7 @@ public class MatchRecorder : MonoBehaviour
             Debug.LogError($"Expected 800×480 capture, got {image.width}×{image.height}");
             Application.Quit(1);
         }
-        else File.WriteAllBytes(Path.Combine(_directory, "compact-freeze.png"), image.EncodeToPNG());
+        else File.WriteAllBytes(Path.Combine(_directory, name + ".png"), image.EncodeToPNG());
         Destroy(image);
     }
 

@@ -159,7 +159,7 @@ def main():
         output = work / "report"
         screens = output / "screens"
         screens.mkdir(parents=True)
-        for name in [*SCENES, "compact-freeze", "lan-room-browser", "lan-guest-turn", "lan-host-result"]:
+        for name in [*SCENES, "compact-setup", "compact-freeze", "lan-lobby", "lan-room-browser", "lan-guest-turn", "lan-host-result"]:
             shutil.copy(frames / f"{name}.png", screens)
         movie = output / "demo4x4.mp4"
         run(["ffmpeg", "-loglevel", "error", "-framerate", str(FPS), "-i", frames / "frame-%05d.png",
@@ -178,13 +178,14 @@ def main():
             "The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera "
             "and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, "
             "rotates the camera by dragging, clicks the far wall, uses Relay and Freeze, takes supply and resolves a Beacon. "
-            "Setup, restart and Relay confirmation use the HUD’s controller actions. "
+            "The driver clicks Start match and Play again. The terrace sequence confirms Relay through the controller. "
             "Wave playback is accelerated for review. This run covers the local game on macOS. "
             "The LAN run below uses two copies of the same player.", "",
         ]
         for name, title in SCENES.items():
             report += [f"## {title}", "", f"{times[name]:.1f} s", "", f"![{title}](screens/{name}.png)", ""]
-        report += ["## Four-seat Freeze targeting at 800×480", "",
+        report += ["## Match setup and four-seat Freeze targeting at 800×480", "",
+                   "![Match setup in a compact window](screens/compact-setup.png)", "",
                    "Real pointer input selected Freeze, picked a cube and orbited the camera with the preview still active. "
                    "The capture driver exercised Cancel, Escape and Confirm and checked that only Confirm spent a turn.", "",
                    "![Four-seat terrace with Freeze selected](screens/compact-freeze.png)", ""]
@@ -192,6 +193,7 @@ def main():
         report += ["## LAN match", "",
                    f"Two macOS player processes ran on one computer. The guest discovered the named room over UDP and joined its advertised TCP port. The host played P1 and the guest played P2. "
                    f"Both finished on turn {lan['turn']} with the same board, roster and result ({outcome}).", "",
+                   "![Host waiting for players](screens/lan-lobby.png)", "",
                    "![Room found on the Join LAN screen](screens/lan-room-browser.png)", "",
                    "![Guest taking a turn](screens/lan-guest-turn.png)", "",
                    "![Result on the host](screens/lan-host-result.png)", ""]
