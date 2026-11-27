@@ -4,6 +4,7 @@
         "WhoWhoo3D.Networking",
         "WhoWhoo3D.Domain",
         "WhoWhoo3D.Gameplay",
+        "UnityEngine.UI",
         "Unity.InputSystem"
     ],
     "optionalUnityReferences": ["TestAssemblies"],

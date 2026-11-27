@@ -39,9 +39,9 @@ Freeze and Beacon are playable. Phase, Bank, Switchback and Pass are candidates 
 
 ## Adaptive interface
 
-Migrate setup, room browser, scoreboard, inventory and results to shared uGUI/TextMeshPro components. Use one type scale, spacing scale, focus outline and set of button states. Use a symbol or pattern alongside each seat color. Put current turn and score at the top, inventory within reach at the bottom, and reserve the middle for the board. Compact screens can collapse the score list and expand one ability card at a time. Opening a tray should preserve the camera target.
+The shared scene now uses a safe-area uGUI canvas and TextMeshPro for live matches. The header shows the turn, scores and public charge counts. The lower tray holds the local seat's cards, supply choice and target preview. Freeze identifies the selected cube and the seat after which it thaws. Narrow layouts stack the controls beneath the instructions. The saved-scene pointer test covers targeting, orbiting, canceling and confirming a four-seat Freeze. The capture script repeats that interaction in an 800×480 standalone window. [Gameplay report](reports/README.md)
 
-The current IMGUI pass aligns the match panels and their pointer-blocking rectangles to the same safe area. The redesign should also handle larger text through reflow, keyboard focus, long room and ability names, and a visible explanation for each disabled action. Use anchored regions and a reference-resolution canvas, then choose compact layouts from available space. [Unity’s guide to multiple resolutions](https://docs.unity3d.com/Packages/com.unity.ugui@2.0/manual/HOWTO-UIMultiResolution.html)
+**Next implementation.** Bring match setup, the LAN browser and results onto the same controls and typography. Add a hot-seat handoff and check keyboard focus through setup, play and rematch. Keep HUD hit areas aligned with their drawn panels as screen dimensions and safe insets change.
 
 **Acceptance.** Automatically capture setup, a four-seat room, ability targeting and victory at 800×480, 1280×720, 1920×1080 and 3440×1440, plus a 360×640 portrait layout probe with simulated safe insets. Repeat with large text. Check focused controls, wrapping, overlap, click-through and the ability to cancel using the keyboard. Portrait checks assess layout only.
 

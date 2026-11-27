@@ -59,7 +59,8 @@ The current board uses primitive cubes and code-spawned tiles. Mint highlights i
 - [x] Fit, orbit, pan and zoom the vertical demo using the loaded board bounds.
 
 ### UI interaction
-- [ ] Replace `ScoreboardView` and `TimelineView` IMGUI with uGUI/TextMeshPro.
+- [x] Replace the live scoreboard and inventory with a safe-area uGUI/TextMeshPro HUD. Exercise four-seat Freeze at 800×480.
+- [ ] Migrate setup, LAN room browser and results to the shared controls. The local debug timeline still uses IMGUI.
 - [x] Hover and selection feedback on tiles — the single biggest legibility gap.
 - [x] Click affordances: highlight legal slots for the active player, dim locked faces.
 - [ ] Turn hand-off screen for hot-seat play, so players know the turn changed.

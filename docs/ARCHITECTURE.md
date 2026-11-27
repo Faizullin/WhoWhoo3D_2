@@ -40,6 +40,8 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 
 `Core`, `Data` and `Utils` are assembly scaffolds. Unity scene builders live under `_Project/Editor`. Rule tests and the saved-scene match check live under `_Project/Tests/EditMode` and `PlayMode`.
 
+The scene's `ScoreboardView` binds the local session and owns the screen lifecycle. It constructs one `MatchHud` for all maps and seat modes. Live controls call the existing controller commands. The canvas checks its header and tray rectangles through `IBoardInputPanel`, leaving the space between them available for board selection and camera gestures. Setup, results and the debug timeline use IMGUI. Opening the timeline gives it the lower tray’s screen space.
+
 ## Code conventions
 
 - Group files by feature and match their namespaces to the module and folder. Use the existing `CellId`, `SideId`, `SlotId` and `PlayerId` types at boundaries.
@@ -161,6 +163,6 @@ The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery
 
 The discovery tests join a room by its advertised port, track changing seat counts, expire filled and closed rooms, and filter incompatible announcements. The standalone report captures the join screen before the guest selects the discovered room.
 
-Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The demo supports Fixed charges and Supply. Upcoming work covers ability balance, an adaptive HUD and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
+Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The demo supports Fixed charges and Supply. Upcoming UI work covers setup, LAN rooms and results, followed by board materials and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 
 The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).

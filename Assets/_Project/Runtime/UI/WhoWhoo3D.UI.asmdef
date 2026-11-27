@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "WhoWhoo3D.Networking",
+        "GUID:2bafac87e7f4b9b418d9448d219b01ab",
         "GUID:9aa3249398c2bd64aa661123c7842b6e",
         "GUID:b82dcc173cc1e8b408229fea6447823f",
         "GUID:4b4d9184cbe72ed4389105ac62474c60",

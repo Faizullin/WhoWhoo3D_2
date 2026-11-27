@@ -38,8 +38,11 @@ public class MatchRecorder : MonoBehaviour
             if (device is Pointer && device.native) InputSystem.DisableDevice(device);
         var mouse = InputSystem.AddDevice<Mouse>();
         mouse.MakeCurrent();
-        StartCoroutine(RecordFrames());
-        var sequence = DemoMatchSequence.Run(game, board, Camera.main, mouse, name => _checkpoint = name, true);
+        bool compact = Environment.GetEnvironmentVariable("WHOWHOO_COMPACT_HUD") == "1";
+        if (!compact) StartCoroutine(RecordFrames());
+        var sequence = compact ? CompactHudSequence.Run(game, board, Camera.main, mouse,
+            () => StartCoroutine(CaptureCompact())) :
+            DemoMatchSequence.Run(game, board, Camera.main, mouse, name => _checkpoint = name, true);
         // Unroll nested iterators so assertion failures also reach the calling script.
         var stack = new Stack<IEnumerator>();
         stack.Push(sequence);
@@ -64,6 +67,19 @@ public class MatchRecorder : MonoBehaviour
         _finished = true;
         yield return _endOfFrame;
         Application.Quit(0);
+    }
+
+    private IEnumerator CaptureCompact()
+    {
+        yield return _endOfFrame;
+        var image = ScreenCapture.CaptureScreenshotAsTexture();
+        if (image.width != 800 || image.height != 480)
+        {
+            Debug.LogError($"Expected 800×480 capture, got {image.width}×{image.height}");
+            Application.Quit(1);
+        }
+        else File.WriteAllBytes(Path.Combine(_directory, "compact-freeze.png"), image.EncodeToPNG());
+        Destroy(image);
     }
 
     private IEnumerator RecordFrames()

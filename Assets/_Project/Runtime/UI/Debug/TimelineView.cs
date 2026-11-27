@@ -26,6 +26,8 @@ namespace WhoWhoo3D.UI.Debugging
         [Range(0.5f, 4f)]
         [SerializeField] private float uiScale = 1f;
 
+        public bool IsOpen => isActiveAndEnabled && visible && gameController != null && gameController.Connection == null;
+
         private const float PanelHeight = 108f;
 
         private Rect _panelPixels;

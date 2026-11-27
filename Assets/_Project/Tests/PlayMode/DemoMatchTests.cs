@@ -21,6 +21,22 @@ public class DemoMatchTests
     [UnityTest]
     public IEnumerator SavedDemoAcceptsClicksThroughVictoryAndRestart()
     {
+        yield return OpenDemo();
+        yield return DemoMatchSequence.Run(Find<GameController>(), Find<BoardView>(), Find<Camera>(), _mouse, _ => { }, false);
+    }
+
+    [UnityTest]
+    public IEnumerator FourSeatFreezeUsesHudAndBoardInput()
+    {
+        yield return OpenDemo();
+        yield return CompactHudSequence.Run(Find<GameController>(), Find<BoardView>(), Find<Camera>(), _mouse, null);
+    }
+
+    private T Find<T>() where T : Component =>
+        System.Array.Find(_scene.GetRootGameObjects(), go => go.GetComponent<T>() != null).GetComponent<T>();
+
+    private IEnumerator OpenDemo()
+    {
         _previousBackground = InputSystem.settings.backgroundBehavior;
         InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
         _previousRouting = InputSystem.settings.editorInputBehaviorInPlayMode;
@@ -31,9 +47,6 @@ public class DemoMatchTests
         yield return EditorSceneManager.LoadSceneAsyncInPlayMode(path, new LoadSceneParameters(LoadSceneMode.Additive));
         _scene = SceneManager.GetSceneByPath(path);
         yield return null;
-        var roots = _scene.GetRootGameObjects();
-        T Find<T>() where T : Component => System.Array.Find(roots, go => go.GetComponent<T>() != null).GetComponent<T>();
-        yield return DemoMatchSequence.Run(Find<GameController>(), Find<BoardView>(), Find<Camera>(), _mouse, _ => { }, false);
     }
 
     [UnityTearDown]

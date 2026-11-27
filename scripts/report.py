@@ -130,9 +130,10 @@ def main():
         shutil.copy(TOOLS / "BuildReportPlayer.cs", capture / "Editor")
         shutil.copy(TOOLS / "MatchRecorder.cs", capture)
         shutil.copy(TOOLS / "LanMatchRecorder.cs", capture)
-        shutil.copy(project / "Assets/_Project/Tests/PlayMode/DemoMatchSequence.cs", capture)
+        for sequence in ("DemoMatchSequence", "CompactHudSequence"):
+            shutil.copy(project / f"Assets/_Project/Tests/PlayMode/{sequence}.cs", capture)
         (capture / "ReportCapture.asmdef").write_text(json.dumps({
-            "name": "ReportCapture", "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay", "WhoWhoo3D.Networking", "Unity.InputSystem"]}))
+            "name": "ReportCapture", "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay", "WhoWhoo3D.Networking", "UnityEngine.UI", "Unity.InputSystem"]}))
         (capture / "csc.rsp").write_text("-langversion:latest\n")
         (capture / "Editor/ReportBuild.asmdef").write_text(json.dumps({"name": "ReportBuild", "includePlatforms": ["Editor"]}))
         player = work / "Game.app"
@@ -146,6 +147,9 @@ def main():
         exe = next((player / "Contents/MacOS").iterdir())
         command = [exe, "-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720"]
         run([*command, "-logFile", log], log, env=env)
+        compact_log = work / "compact.log"
+        run([exe, "-screen-fullscreen", "0", "-screen-width", "800", "-screen-height", "480", "-logFile", compact_log],
+            compact_log, env=dict(env, WHOWHOO_COMPACT_HUD="1"))
         lan = record_lan(command, env, frames, work)
         lines = (frames / "timeline.tsv").read_text().splitlines()
         times = {label: int(frame) / FPS for frame, label in (line.split("\t") for line in lines)}
@@ -155,7 +159,7 @@ def main():
         output = work / "report"
         screens = output / "screens"
         screens.mkdir(parents=True)
-        for name in [*SCENES, "lan-room-browser", "lan-guest-turn", "lan-host-result"]:
+        for name in [*SCENES, "compact-freeze", "lan-room-browser", "lan-guest-turn", "lan-host-result"]:
             shutil.copy(frames / f"{name}.png", screens)
         movie = output / "demo4x4.mp4"
         run(["ffmpeg", "-loglevel", "error", "-framerate", str(FPS), "-i", frames / "frame-%05d.png",
@@ -180,6 +184,10 @@ def main():
         ]
         for name, title in SCENES.items():
             report += [f"## {title}", "", f"{times[name]:.1f} s", "", f"![{title}](screens/{name}.png)", ""]
+        report += ["## Four-seat Freeze targeting at 800×480", "",
+                   "Real pointer input selected Freeze, picked a cube and orbited the camera with the preview still active. "
+                   "The capture driver exercised Cancel, Escape and Confirm and checked that only Confirm spent a turn.", "",
+                   "![Four-seat terrace with Freeze selected](screens/compact-freeze.png)", ""]
         outcome = f"P{lan['winner']} won" if lan['winner'] else "a draw"
         report += ["## LAN match", "",
                    f"Two macOS player processes ran on one computer. The guest discovered the named room over UDP and joined its advertised TCP port. The host played P1 and the guest played P2. "

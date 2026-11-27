@@ -2,22 +2,14 @@ using System;
 using UnityEngine;
 using WhoWhoo3D.Gameplay.Maps;
 using WhoWhoo3D.Domain.Board;
-using WhoWhoo3D.Domain.Match;
-using WhoWhoo3D.Gameplay.Abilities;
 using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.Game;
-using WhoWhoo3D.Gameplay.Turn;
+using WhoWhoo3D.UI.Debugging;
 using WhoWhoo3D.Networking;
 
 namespace WhoWhoo3D.UI.HUD
 {
-    /// <summary>
-    /// Top-corner scoreboard: every player, their tile count, and whose turn it is.
-    ///
-    /// Drawn with IMGUI so it needs no Canvas, prefab or font import — drop the component
-    /// on any GameObject and it works. That is deliberate for playtesting; the UI pass in
-    /// docs/TODO.md §5 replaces it with uGUI, at which point this can be deleted.
-    /// </summary>
+    /// <summary>Scene entry point for setup, the live match HUD and results.</summary>
     public sealed class ScoreboardView : MonoBehaviour, IBoardInputPanel
     {
         [SerializeField] private GameController gameController;
@@ -43,13 +35,18 @@ namespace WhoWhoo3D.UI.HUD
         private int _players;
         private bool _supply;
         private Vector2 _matchScroll;
-        private static readonly MatchAction[] Cards = { MatchAction.Relay, MatchAction.Freeze, MatchAction.Beacon };
+        private MatchHud _hud;
+        private TimelineView _timeline;
         private string _setupError;
         private Rect _panelPixels;
         private GUIStyle _title;
 
-        public bool CoversScreenPoint(Vector2 point) =>
-            isActiveAndEnabled && _panelPixels.Contains(new Vector2(point.x, Screen.height - point.y));
+        private bool InMatch => gameController != null && gameController.Roster != null &&
+            !gameController.InSetup && !_room.InLobby && !gameController.IsGameOver;
+
+        public bool CoversScreenPoint(Vector2 point) => isActiveAndEnabled && (InMatch
+            ? _hud != null && _hud.Covers(point)
+            : _panelPixels.Contains(new Vector2(point.x, Screen.height - point.y)));
 
         private GUIStyle _heading;
         private GUIStyle _name;
@@ -68,6 +65,19 @@ namespace WhoWhoo3D.UI.HUD
             _session = GetComponent<LanMatchSession>() ?? gameObject.AddComponent<LanMatchSession>();
             _session.Bind(gameController);
             _room = new LanRoomPanel(_session);
+            _timeline = GetComponent<TimelineView>();
+            _hud = new MatchHud(transform, gameController, _session);
+        }
+
+        private void LateUpdate()
+        {
+            _hud.SetVisible(InMatch);
+            if (InMatch) _hud.Refresh(uiScale, _room.IsSolo, _timeline != null && _timeline.IsOpen);
+        }
+
+        private void OnDisable()
+        {
+            _hud?.SetVisible(false);
         }
 
         private void OnDestroy()
@@ -78,7 +88,7 @@ namespace WhoWhoo3D.UI.HUD
 
         private void OnGUI()
         {
-            if (gameController == null || gameController.Roster == null)
+            if (gameController == null || gameController.Roster == null || InMatch)
                 return;
 
             EnsureStyles();
@@ -98,15 +108,7 @@ namespace WhoWhoo3D.UI.HUD
             }
             int players = gameController.Roster.Players.Count;
             bool inRoom = _session.State == LanState.Playing;
-            float height = 34f + players * RowHeight + (gameController.IsGameOver || inRoom ? 112f : 54f);
-            if (!gameController.IsGameOver)
-            {
-                height += gameController.SelectedAction != MatchAction.Claim ? 95f : 33f;
-                if (gameController.Setup.Supply) height += 54f;
-                foreach (var seat in gameController.Roster.Players)
-                    if (seat.Inventory.HasBeacon || !string.IsNullOrEmpty(seat.Inventory.frozenCell)) height += 22f;
-            }
-            height = Mathf.Min(height, viewport.Size.y - 2 * margin.y);
+            float height = Mathf.Min(146f + players * RowHeight, viewport.Size.y - 2 * margin.y);
             float panelWidth = Mathf.Min(width, logicalWidth - 2 * margin.x);
             float x = corner == Corner.TopLeft ? margin.x : logicalWidth - panelWidth - margin.x;
 
@@ -117,22 +119,20 @@ namespace WhoWhoo3D.UI.HUD
 
             _matchScroll = GUILayout.BeginScrollView(_matchScroll);
             GUILayout.Space(8f);
-            GUILayout.Label(gameController.IsGameOver ? "MATCH RESULT" : $"TURN {gameController.TurnNumber}", _heading);
+            GUILayout.Label("MATCH RESULT", _heading);
             DrawPlayers();
             GUILayout.Space(6f);
-            GUILayout.Label(StatusLine(), _note);
-
-            if (!gameController.IsGameOver) DrawInventory();
+            GUILayout.Label(gameController.Winner.IsNone ? "Draw" : $"{gameController.Winner} wins", _note);
 
             if (inRoom)
             {
                 GUILayout.BeginHorizontal();
-                if (_session.IsHost && gameController.IsGameOver && GUILayout.Button("Play again", GUILayout.Height(30)))
+                if (_session.IsHost && GUILayout.Button("Play again", GUILayout.Height(30)))
                     _session.Rematch();
                 if (GUILayout.Button(_session.IsHost ? "End room" : "Leave room", GUILayout.Height(30))) _session.Leave();
                 GUILayout.EndHorizontal();
             }
-            else if (gameController.IsGameOver)
+            else
             {
                 GUILayout.Space(6);
                 GUILayout.BeginHorizontal();
@@ -150,74 +150,6 @@ namespace WhoWhoo3D.UI.HUD
             GUILayout.EndScrollView();
             GUILayout.EndArea();
             GUI.matrix = previousMatrix;
-        }
-
-        private void DrawInventory()
-        {
-            var seat = gameController.ActivePlayer;
-            if (_session.LocalSeat > 0) seat = gameController.Roster.Players[_session.LocalSeat - 1];
-            else if (_room.IsSolo) seat = gameController.Roster.Players[0];
-            var action = gameController.SelectedAction;
-            bool canPlay = gameController.AcceptsBoardInput && seat == gameController.ActivePlayer;
-            if (action == MatchAction.Claim)
-            {
-                GUILayout.BeginHorizontal();
-                foreach (var card in Cards)
-                {
-                    if (card == MatchAction.Beacon && !gameController.Setup.Supply) continue;
-                    bool charged = seat.Inventory.Has(card);
-                    GUI.enabled = canPlay && charged;
-                    if (GUILayout.Button($"{card} ×{(charged ? 1 : 0)}", GUILayout.Height(26))) gameController.SelectAbility(card);
-                }
-                GUI.enabled = true;
-                GUILayout.EndHorizontal();
-                if (gameController.Setup.Supply)
-                {
-                    var inv = seat.Inventory;
-                    GUILayout.Label(inv.supplyUsed ? "Supply collected" : inv.SupplyReady ? "Supply ready · choose one free charge" :
-                        $"Supply {inv.ordinaryClaims}/{AbilityInventory.SupplyThreshold} ordinary claims", _note);
-                    if (inv.SupplyReady)
-                    {
-                        GUILayout.BeginHorizontal();
-                        foreach (var card in Cards)
-                        {
-                            GUI.enabled = canPlay && gameController.Abilities.CanRefill(card);
-                            if (GUILayout.Button("+ " + card)) gameController.TakeSupply(card);
-                        }
-                        GUI.enabled = true;
-                        GUILayout.EndHorizontal();
-                    }
-                }
-            }
-            else
-            {
-                bool picked = gameController.Target.HasValue;
-                string prompt = action switch
-                {
-                    MatchAction.Freeze => picked ? $"Freeze this cube through {gameController.Abilities.NextOpponent}’s turn. Waves pass through."
-                        : "Pick a tile on the cube to freeze.",
-                    MatchAction.Beacon => gameController.SecondTarget.HasValue ? "Both marks must stay open until your next turn."
-                        : picked ? "Pick another white tile on the same face." : "Pick the first of two white tiles on one face.",
-                    _ => picked ? "The boxed tile empties. Both + tiles gain your color."
-                        : "Pick a gold-rimmed tile to cross its edge."
-                };
-                if (gameController.RenderedBoard != null && !gameController.RenderedBoard.HasHighlightedTargets)
-                    prompt = "No legal target. Cancel to choose another action.";
-                GUILayout.Label(prompt, _note);
-                GUILayout.BeginHorizontal();
-                GUI.enabled = gameController.CanConfirm;
-                if (GUILayout.Button("Confirm " + action, GUILayout.Height(28))) gameController.ConfirmAbility();
-                GUI.enabled = true;
-                if (GUILayout.Button("Cancel", GUILayout.Height(28))) gameController.SelectAbility(MatchAction.Claim);
-                GUILayout.EndHorizontal();
-            }
-            foreach (var player in gameController.Roster.Players)
-            {
-                var inv = player.Inventory;
-                if (!string.IsNullOrEmpty(inv.frozenCell))
-                    GUILayout.Label($"Ice thaws after turn {inv.thawAfterTurn}", _note);
-                if (inv.HasBeacon) GUILayout.Label($"{player.Id} Beacon · resolves on their next turn", _note);
-            }
         }
 
         private void DrawSetup(HudViewport viewport)
@@ -334,31 +266,6 @@ namespace WhoWhoo3D.UI.HUD
 
                 GUILayout.EndHorizontal();
             }
-        }
-
-        private string StatusLine()
-        {
-            if (gameController.IsGameOver)
-                return gameController.Winner.IsNone
-                    ? "Draw — no winner"
-                    : $"Game over — P{gameController.Winner.Value} wins";
-
-            if (gameController.SelectedAction != MatchAction.Claim && gameController.AcceptsBoardInput)
-                return $"P{gameController.ActivePlayer.Id.Value} · {gameController.SelectedAction} preview";
-            if (_session.State == LanState.Playing)
-            {
-                string who = $"You are P{_session.LocalSeat}";
-                if (gameController.CurrentPhase is BoardWavePhase) return who + " · Expanding…";
-                return gameController.ActivePlayer.Id.Value == _session.LocalSeat
-                    ? who + " · Your turn" : who + $" · Waiting for P{gameController.ActivePlayer.Id.Value}";
-            }
-            if (gameController.CurrentPhase is BoardWavePhase)
-                return "Expanding…";
-
-            if (gameController.IsReviewingHistory) return "Reviewing history";
-            if (gameController.IsPaused) return "Paused";
-            if (gameController.ActivePlayer.IsAi) return $"P{gameController.ActivePlayer.Id.Value} is choosing a move…";
-            return $"P{gameController.ActivePlayer.Id.Value} to play · choose a mint tile";
         }
 
         private void EnsureStyles()
