@@ -107,7 +107,7 @@ internal sealed class MatchScreens
     public bool Covers(Vector2 point) => _canvas.isActiveAndEnabled &&
         RectTransformUtility.RectangleContainsScreenPoint(_panel, point);
 
-    public void Refresh(float uiScale, bool lobby)
+    public void Refresh(HudViewport viewport, Vector2 pixels, bool lobby)
     {
         var kind = lobby ? ScreenKind.Lobby : _game.InSetup ? ScreenKind.Setup : ScreenKind.Result;
         bool entering = kind != _kind;
@@ -128,7 +128,7 @@ internal sealed class MatchScreens
         }
         if (kind == ScreenKind.Setup && _session.IsBrowsing && _mode != Mode.Join) SelectMode(Mode.Join);
 
-        var size = Fit(_canvas, _safe, uiScale);
+        var size = Fit(_canvas, _safe, viewport, pixels);
         float w = Mathf.Min(size.x - 20, 500);
         float h = kind == ScreenKind.Result ? 146 + _game.PlayerCount * 46 :
             kind == ScreenKind.Lobby ? 275 : 386;

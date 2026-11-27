@@ -9,6 +9,7 @@ using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Abilities;
 using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.Game;
+using WhoWhoo3D.Gameplay.Player;
 using WhoWhoo3D.Gameplay.Turn;
 using WhoWhoo3D.Networking;
 using static WhoWhoo3D.UI.HUD.HudControls;
@@ -17,7 +18,11 @@ namespace WhoWhoo3D.UI.HUD;
 
 internal sealed class MatchHud
 {
-    private static readonly MatchAction[] Cards = { MatchAction.Relay, MatchAction.Freeze, MatchAction.Beacon };
+    private static AbilityPresentation[] Cards => AbilityPresentation.Cards;
+    private readonly Control _info;
+    private readonly AbilityGuide _guide;
+    private readonly AbilityGlyph[] _symbols = new AbilityGlyph[3], _refillSymbols = new AbilityGlyph[3];
+    public bool GuideOpen => _canvas.isActiveAndEnabled && _guide.IsOpen;
     private readonly GameController _game;
     private readonly LanMatchSession _session;
     private readonly Canvas _canvas;
@@ -61,16 +66,22 @@ internal sealed class MatchHud
         _detail.textWrappingMode = TextWrappingModes.Normal;
         for (int i = 0; i < Cards.Length; i++)
         {
-            var card = Cards[i];
+            var card = Cards[i].Action;
             _cards[i] = new Control(_tray, card.ToString(), () => _game.SelectAbility(card));
+            _symbols[i] = _cards[i].AddGlyph(card, Cards[i].Color);
             _refill[i] = new Control(_tray, "Refill " + card, () =>
             {
                 if (_game.TakeSupply(card)) _collecting = false;
             });
+            _refillSymbols[i] = _refill[i].AddGlyph(card, Cards[i].Color);
+            _refill[i].Caption.text = "+";
         }
         _supply = new Control(_tray, "Collect supply", () => _collecting = true, true);
         _confirm = new Control(_tray, "Confirm", () => _game.ConfirmAbility(), true);
         _cancel = new Control(_tray, "Cancel", Cancel);
+        _info = new Control(_tray, "Ability info", OpenGuide);
+        _info.AddGlyph(MatchAction.Claim, Soft, false);
+        _guide = new AbilityGuide((RectTransform)_canvas.transform, _safe, CloseGuide);
         SetVisible(false);
     }
 
@@ -80,6 +91,7 @@ internal sealed class MatchHud
         _canvas.gameObject.SetActive(visible);
         if (!visible)
         {
+            if (_guide.IsOpen) CloseGuide();
             _collecting = false;
             _handoffUntil = 0;
             _lastBoard = null;
@@ -87,8 +99,23 @@ internal sealed class MatchHud
     }
 
     public bool Covers(Vector2 point) => _canvas.isActiveAndEnabled &&
-        (RectTransformUtility.RectangleContainsScreenPoint(_header, point) ||
+        (GuideOpen || RectTransformUtility.RectangleContainsScreenPoint(_header, point) ||
          (_tray.gameObject.activeSelf && RectTransformUtility.RectangleContainsScreenPoint(_tray, point)));
+
+    private void OpenGuide()
+    {
+        _header.gameObject.SetActive(false);
+        _tray.gameObject.SetActive(false);
+        _guide.Open();
+    }
+
+    private void CloseGuide()
+    {
+        _guide.Close();
+        _header.gameObject.SetActive(true);
+        _tray.gameObject.SetActive(true);
+        if (_info.Button.isActiveAndEnabled) _info.Button.Select();
+    }
 
     private void Cancel()
     {
@@ -96,7 +123,7 @@ internal sealed class MatchHud
         _game.SelectAbility(MatchAction.Claim);
     }
 
-    public void Refresh(float uiScale, bool timelineOpen)
+    public void Refresh(HudViewport viewport, Vector2 pixels, bool timelineOpen)
     {
         if (_lastTurn != _game.TurnNumber || _lastBoard != _game.Board) _collecting = false;
         if (_lastBoard != _game.Board)
@@ -116,15 +143,20 @@ internal sealed class MatchHud
         _lastTurn = _game.TurnNumber;
         _lastSeat = _game.ActivePlayer.Id.Value;
         _lastBoard = _game.Board;
-        var size = Fit(_canvas, _safe, uiScale);
+        var size = Fit(_canvas, _safe, viewport, pixels);
         float width = Mathf.Min(size.x - 20, 796);
         float left = (size.x - width) / 2;
+        if (GuideOpen)
+        {
+            _guide.Refresh(size, InventorySeat, _game.Setup.Supply);
+            return;
+        }
         DrawHeader(left, width);
         _tray.gameObject.SetActive(!timelineOpen);
         if (timelineOpen) return;
         var selected = EventSystem.current?.currentSelectedGameObject;
         bool hudFocused = selected != null && selected.transform.IsChildOf(_tray);
-        DrawTray(left, width, size.y);
+        DrawTray(left, width, size.y, InventorySeat);
         if (hudFocused && !selected.activeInHierarchy)
         {
             if (!_collecting && _cancel.Button.isActiveAndEnabled) _cancel.Button.Select();
@@ -152,7 +184,7 @@ internal sealed class MatchHud
         float seatWidth = (width - x - end) / count;
         Place(_header, left, 8, width, y + 49);
         Place(_turn.rectTransform, 14, narrow ? 4 : 7, 135, 16);
-        Place(_status.rectTransform, narrow ? 112 : 14, narrow ? 4 : 23, narrow ? 140 : 137, 26);
+        Place(_status.rectTransform, narrow ? 86 : 14, narrow ? 4 : 23, narrow ? width - 194 : 137, 26);
         _turn.text = $"TURN  {_game.TurnNumber:00}";
         var active = _game.ActivePlayer;
         _status.text = _game.IsReviewingHistory ? "Reviewing" : _game.IsPaused ? "Paused" :
@@ -182,11 +214,13 @@ internal sealed class MatchHud
         }
     }
 
-    private void DrawTray(float left, float width, float screenHeight)
-    {
-        var seat = _session.LocalSeat > 0 ? _game.Roster.Players[_session.LocalSeat - 1] :
+    private PlayerState InventorySeat =>
+        _session.LocalSeat > 0 ? _game.Roster.Players[_session.LocalSeat - 1] :
             !_hotSeat && _game.ActivePlayer.IsAi && !_localHuman.IsNone ?
                 _game.Roster.Players[_localHuman.Value - 1] : _game.ActivePlayer;
+
+    private void DrawTray(float left, float width, float screenHeight, PlayerState seat)
+    {
         bool canPlay = seat == _game.ActivePlayer && _game.AcceptsBoardInput;
         bool supplyMode = _game.Setup.Supply;
         bool supplyReady = supplyMode && seat.Inventory.SupplyReady && canPlay;
@@ -200,7 +234,7 @@ internal sealed class MatchHud
             aiming = false;
         }
         int cardCount = supplyMode ? 3 : 2;
-        bool narrow = width < 610;
+        bool narrow = width < 540;
         _effects.Clear();
         foreach (var player in _game.Roster.Players)
         {
@@ -208,46 +242,66 @@ internal sealed class MatchHud
             if (!string.IsNullOrEmpty(inv.frozenCell)) _effects.Append($"   •   Ice ends T{inv.thawAfterTurn}");
             if (inv.HasBeacon) _effects.Append($"   •   {player.Id} Beacon pending");
         }
-        _title.text = aiming ? $"{action}  /  {seat.Id}" : _collecting ? "Choose a free charge" : $"{seat.Id} abilities";
-        string prompt;
-        if (aiming) prompt = TargetPrompt(action);
-        else if (_collecting) prompt = "Refill one empty card. Your action stays available.";
-        else if (!canPlay) prompt = _game.CurrentPhase is BoardWavePhase ? "Resolving the wave" : $"Waiting for {_game.ActivePlayer.Id}";
-        else if (supplyMode) prompt = seat.Inventory.supplyUsed ? "Supply collected" : supplyReady ? "Supply ready" :
-            $"Supply  {seat.Inventory.ordinaryClaims} / {AbilityInventory.SupplyThreshold} claims";
-        else prompt = "Choose a mint tile or an ability.";
-        _detail.text = prompt + _effects;
-        float controlWidth = narrow ? width - 20 : aiming ? 214 : _collecting || supplyReady ? 375 : cardCount * 106;
-        float copyWidth = narrow ? width - 28 : width - controlWidth - 36;
-        float detailHeight = Mathf.Max(20, Mathf.Ceil(_detail.GetPreferredValues(_detail.text, copyWidth, 1000).y) + 3);
-        float height = Mathf.Max(66, 34 + detailHeight) + (narrow ? 40 : 0);
-        Place(_tray, left, screenHeight - height - 8, width, height);
-        Place(_title.rectTransform, 14, 6, copyWidth, 21);
-        Place(_detail.rectTransform, 14, 27, copyWidth, detailHeight);
-        float x = narrow ? 10 : width - controlWidth - 10;
-        float y = narrow ? height - 42 : (height - 38) / 2;
-        int controls = aiming ? 2 : cardCount + (_collecting || supplyReady ? 1 : 0);
-        float step = controlWidth / controls;
+        string inspected = null;
+        var selected = EventSystem.current?.currentSelectedGameObject;
         for (int i = 0; i < Cards.Length; i++)
         {
             var card = Cards[i];
-            bool showCard = !aiming && !_collecting && i < cardCount;
-            bool charged = seat.Inventory.Has(card);
-            _cards[i].Show(showCard, canPlay && charged);
-            _cards[i].Caption.text = $"{card}  ×{(charged ? 1 : 0)}";
-            _refill[i].Show(_collecting, canPlay && _game.Abilities.CanRefill(card));
-            _refill[i].Caption.text = "+ " + card;
-            Place(_cards[i].Rect, x + i * step, y, step - 4, 38);
-            Place(_refill[i].Rect, x + i * step, y, step - 4, 38);
+            bool charged = seat.Inventory.Has(card.Action);
+            bool canRefill = _collecting && _game.Abilities.CanRefill(card.Action);
+            _cards[i].Show(!aiming && !_collecting && i < cardCount, canPlay && charged);
+            _cards[i].Caption.text = charged ? "1" : "0";
+            _symbols[i].color = charged ? card.Color : Soft;
+            _refill[i].Show(_collecting, canPlay && canRefill);
+            _refillSymbols[i].color = canRefill ? card.Color : Soft;
+            var visible = _collecting ? _refill[i] : _cards[i];
+            if (visible.Button.isActiveAndEnabled && visible.Button.gameObject == selected) inspected = card.Name;
+        }
+        // Mouse inspection takes precedence over the last keyboard selection, even on spent cards.
+        for (int i = 0; i < cardCount; i++)
+        {
+            var visible = _collecting ? _refill[i] : _cards[i];
+            if (visible.Button.isActiveAndEnabled && visible.Button.Hovered) inspected = Cards[i].Name;
+        }
+        bool inspectingInfo = _info.Button.Hovered || (inspected == null && selected == _info.Button.gameObject && !aiming);
+        _title.text = inspectingInfo ? "Ability guide" : aiming ? action.ToString() : inspected ??
+            (_collecting ? "Refill a charge" : $"{seat.Id} inventory");
+        string prompt = "";
+        if (aiming) prompt = TargetPrompt(action);
+        else if (_collecting) prompt = "One free refill";
+        else if (!canPlay && !(_game.CurrentPhase is BoardWavePhase)) prompt = $"Waiting for {_game.ActivePlayer.Id}";
+        else if (supplyMode && !seat.Inventory.supplyUsed)
+            prompt = supplyReady ? "Refill available" : $"Supply   {seat.Inventory.ordinaryClaims} / {AbilityInventory.SupplyThreshold}";
+        _detail.text = (prompt + _effects).Trim();
+        bool detail = _detail.text.Length > 0;
+        _detail.gameObject.SetActive(detail);
+        int visibleCards = aiming ? 0 : cardCount;
+        float buttonWidth = aiming ? 82 : 48;
+        float controlsWidth = 44 + 6 + (aiming ? 2 * (buttonWidth + 5) :
+            visibleCards * (buttonWidth + 5) + (_collecting || supplyReady ? 76 : 0));
+        float copyWidth = narrow ? width - 28 : width - controlsWidth - 36;
+        float detailHeight = detail ? Mathf.Ceil(_detail.GetPreferredValues(_detail.text, copyWidth, 1000).y) + 2 : 0;
+        float textHeight = 22 + detailHeight;
+        float height = narrow ? 20 + textHeight + 48 : Mathf.Max(62, textHeight + 20);
+        Place(_tray, left, screenHeight - height - 8, width, height);
+        float textY = narrow ? 6 : (height - textHeight) / 2;
+        Place(_title.rectTransform, 14, textY, copyWidth, 22);
+        Place(_detail.rectTransform, 14, textY + 22, copyWidth, detailHeight);
+        float x = narrow ? 10 : width - controlsWidth - 8;
+        float y = narrow ? height - 50 : (height - 44) / 2;
+        for (int i = 0; i < cardCount; i++)
+        {
+            Place(_cards[i].Rect, x + i * 53, y, 48, 44);
+            Place(_refill[i].Rect, x + i * 53, y, 48, 44);
         }
         _confirm.Show(aiming, _game.CanConfirm);
         _cancel.Show(aiming || _collecting, true);
         _supply.Show(supplyReady && !aiming && !_collecting, canPlay);
-        Place(_cancel.Rect, x + (_collecting ? cardCount : 0) * step, y, step - 4, 38);
-        Place(_confirm.Rect, x + step, y, step - 4, 38);
-        Place(_supply.Rect, x + cardCount * step, y, step - 4, 38);
-        _confirm.Caption.text = "Confirm";
-        _supply.Caption.text = "Collect";
+        Place(_cancel.Rect, x + (_collecting ? cardCount * 53 : 0), y, _collecting ? 71 : buttonWidth, 44);
+        Place(_confirm.Rect, x + buttonWidth + 5, y, buttonWidth, 44);
+        Place(_supply.Rect, x + cardCount * 53, y, 71, 44);
+        Place(_info.Rect, narrow ? width - 54 : width - 52, y, 44, 44);
+        _supply.Caption.text = "Refill";
     }
 
     private string TargetPrompt(MatchAction action)

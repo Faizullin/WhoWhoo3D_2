@@ -1,6 +1,6 @@
 # WhoWhoo3D gameplay report
 
-[Watch the flat match and vertical demo (61.2 s)](demo4x4.mp4)
+[Watch the flat match and vertical demo (63.4 s)](demo4x4.mp4)
 
 Unity 6000.4.5f1 · Demo4x4 · three local players · **P1 won in 25 clicks**.
 
@@ -50,45 +50,51 @@ The silent video records the game window at 12 fps. A seeded driver sends mouse 
 
 ![Terrace 6×6 opening](screens/terrace.png)
 
-## Expansion from tread to riser
+## Inventory charges and ability guide
 
 45.7 s
+
+![Inventory charges and ability guide](screens/inventory-guide.png)
+
+## Expansion from tread to riser
+
+47.8 s
 
 ![Expansion from tread to riser](screens/terrace-wave.png)
 
 ## The terrace after orbiting to the far side
 
-50.2 s
+52.4 s
 
 ![The terrace after orbiting to the far side](screens/terrace-orbit.png)
 
 ## Relay target preview before confirmation
 
-51.8 s
+54.0 s
 
 ![Relay target preview before confirmation](screens/relay.png)
 
 ## A free supply choice after four ordinary claims
 
-55.3 s
+57.5 s
 
 ![A free supply choice after four ordinary claims](screens/supply.png)
 
 ## Frozen cube during the opposing turn
 
-56.5 s
+58.7 s
 
 ![Frozen cube during the opposing turn](screens/freeze.png)
 
 ## Public Beacon marks before the opponent replies
 
-57.8 s
+60.0 s
 
 ![Public Beacon marks before the opponent replies](screens/beacon.png)
 
 ## Beacon starting a wave before its owner acts
 
-59.2 s
+61.3 s
 
 ![Beacon starting a wave before its owner acts](screens/beacon-wave.png)
 
@@ -99,6 +105,25 @@ The silent video records the game window at 12 fps. A seeded driver sends mouse 
 Real pointer input selected Freeze, picked a cube and orbited the camera with the preview still active. The capture driver exercised Cancel, Escape and Confirm and checked that only Confirm spent a turn.
 
 ![Four-seat terrace with Freeze selected](screens/compact-freeze.png)
+
+## Inventory and adaptive layouts
+
+![Four-seat inventory guide](screens/layouts/1280x720-1x-guide.png)
+
+These offscreen renders use the game’s camera and controls. The four-seat waiting room, Freeze preview and result are staged for layout inspection. The portrait safe area has simulated side, top and bottom insets. The large-text setting requests 2× scaling and fits to the available space. Each capture checks control bounds, overlap and text overflow.
+
+| Viewport | UI scale | Setup | LAN room | Target | Inventory | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| 800x480 | 1× | [setup](screens/layouts/800x480-1x-setup.png) | [room](screens/layouts/800x480-1x-room.png) | [target](screens/layouts/800x480-1x-target.png) | [guide](screens/layouts/800x480-1x-guide.png) | [result](screens/layouts/800x480-1x-result.png) |
+| 800x480 | 2× | [setup](screens/layouts/800x480-2x-setup.png) | [room](screens/layouts/800x480-2x-room.png) | [target](screens/layouts/800x480-2x-target.png) | [guide](screens/layouts/800x480-2x-guide.png) | [result](screens/layouts/800x480-2x-result.png) |
+| 1280x720 | 1× | [setup](screens/layouts/1280x720-1x-setup.png) | [room](screens/layouts/1280x720-1x-room.png) | [target](screens/layouts/1280x720-1x-target.png) | [guide](screens/layouts/1280x720-1x-guide.png) | [result](screens/layouts/1280x720-1x-result.png) |
+| 1280x720 | 2× | [setup](screens/layouts/1280x720-2x-setup.png) | [room](screens/layouts/1280x720-2x-room.png) | [target](screens/layouts/1280x720-2x-target.png) | [guide](screens/layouts/1280x720-2x-guide.png) | [result](screens/layouts/1280x720-2x-result.png) |
+| 1920x1080 | 1× | [setup](screens/layouts/1920x1080-1x-setup.png) | [room](screens/layouts/1920x1080-1x-room.png) | [target](screens/layouts/1920x1080-1x-target.png) | [guide](screens/layouts/1920x1080-1x-guide.png) | [result](screens/layouts/1920x1080-1x-result.png) |
+| 1920x1080 | 2× | [setup](screens/layouts/1920x1080-2x-setup.png) | [room](screens/layouts/1920x1080-2x-room.png) | [target](screens/layouts/1920x1080-2x-target.png) | [guide](screens/layouts/1920x1080-2x-guide.png) | [result](screens/layouts/1920x1080-2x-result.png) |
+| 3440x1440 | 1× | [setup](screens/layouts/3440x1440-1x-setup.png) | [room](screens/layouts/3440x1440-1x-room.png) | [target](screens/layouts/3440x1440-1x-target.png) | [guide](screens/layouts/3440x1440-1x-guide.png) | [result](screens/layouts/3440x1440-1x-result.png) |
+| 3440x1440 | 2× | [setup](screens/layouts/3440x1440-2x-setup.png) | [room](screens/layouts/3440x1440-2x-room.png) | [target](screens/layouts/3440x1440-2x-target.png) | [guide](screens/layouts/3440x1440-2x-guide.png) | [result](screens/layouts/3440x1440-2x-result.png) |
+| 360x640 | 1× | [setup](screens/layouts/360x640-1x-setup.png) | [room](screens/layouts/360x640-1x-room.png) | [target](screens/layouts/360x640-1x-target.png) | [guide](screens/layouts/360x640-1x-guide.png) | [result](screens/layouts/360x640-1x-result.png) |
+| 360x640 | 2× | [setup](screens/layouts/360x640-2x-setup.png) | [room](screens/layouts/360x640-2x-room.png) | [target](screens/layouts/360x640-2x-target.png) | [guide](screens/layouts/360x640-2x-guide.png) | [result](screens/layouts/360x640-2x-result.png) |
 
 ## LAN match
 

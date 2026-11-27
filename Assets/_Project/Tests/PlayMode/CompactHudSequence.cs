@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Linq;
+using TMPro;
+using UnityEngine.EventSystems;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
@@ -41,6 +43,10 @@ public static class CompactHudSequence
         var cancel = (RectTransform)tray.Find("Cancel");
         var initialView = camera.transform.rotation;
         var initialPosition = camera.transform.position;
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = Center(freeze) });
+        yield return null;
+        yield return null;
+        Require(tray.Find("Inventory").GetComponent<TMP_Text>().text == "Freeze", "Hover did not identify the ability");
         yield return Click(mouse, Center(freeze));
         Require(game.SelectedAction == MatchAction.Freeze && !game.Target.HasValue && game.History.Entries.Count == 0,
             "Clicking the Freeze card must only arm targeting");
@@ -50,6 +56,40 @@ public static class CompactHudSequence
         Require(game.Target == target && confirm.interactable, "Board pointer did not preview the selected cube");
         Require(camera.transform.rotation == initialView && camera.transform.position == initialPosition,
             "Opening the tray moved the camera");
+        yield return ClickControl(game, mouse, "Ability info");
+        var guide = (RectTransform)safe.Find("Ability guide");
+        Require(guide.gameObject.activeInHierarchy && Blocked(camera.pixelRect.center), "The inventory guide must own board input");
+        Require(guide.Find("Freeze/Name and charges").GetComponent<TMP_Text>().text.Contains("×1"), "Guide lost the local charge");
+        bool initialLarge = PresentationSettings.LargeText, initialMotion = PresentationSettings.ReducedMotion;
+        try
+        {
+            yield return ClickControl(game, mouse, "Large text");
+            Require(PresentationSettings.LargeText != initialLarge, "Text scale button did not apply");
+            yield return ClickControl(game, mouse, "Reduce motion");
+            Require(PresentationSettings.ReducedMotion != initialMotion, "Motion button did not apply");
+        }
+        finally
+        {
+            PresentationSettings.LargeText = initialLarge;
+            PresentationSettings.ReducedMotion = initialMotion;
+        }
+        yield return Click(mouse, point);
+        var keys = InputSystem.AddDevice<Keyboard>();
+        try
+        {
+            InputSystem.QueueStateEvent(keys, new KeyboardState(Key.Tab, Key.D));
+            yield return null;
+            yield return null;
+            Require(EventSystem.current.currentSelectedGameObject.transform.IsChildOf(guide), "Tab left the guide");
+            InputSystem.QueueStateEvent(keys, new KeyboardState(Key.Escape));
+            yield return null;
+            yield return null;
+        }
+        finally { InputSystem.RemoveDevice(keys); }
+        Require(!guide.gameObject.activeInHierarchy && game.SelectedAction == MatchAction.Freeze &&
+            game.Target == target && game.History.Entries.Count == 0, "Closing the guide changed the pending action");
+        Require(camera.transform.rotation == initialView && EventSystem.current.currentSelectedGameObject.name == "Ability info",
+            "The guide moved the camera or lost focus");
         capture?.Invoke();
         yield return null;
         var center = camera.pixelRect.center;

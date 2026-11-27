@@ -39,9 +39,10 @@ public class MatchRecorder : MonoBehaviour
         var mouse = InputSystem.AddDevice<Mouse>();
         mouse.MakeCurrent();
         bool compact = Environment.GetEnvironmentVariable("WHOWHOO_COMPACT_HUD") == "1";
+        bool layouts = Environment.GetEnvironmentVariable("WHOWHOO_LAYOUTS") == "1";
         if (compact) yield return CaptureCompact("compact-setup");
-        else StartCoroutine(RecordFrames());
-        var sequence = compact ? CompactHudSequence.Run(game, board, Camera.main, mouse,
+        else if (!layouts) StartCoroutine(RecordFrames());
+        var sequence = layouts ? new LayoutRecorder(game, _directory).Run() : compact ? CompactHudSequence.Run(game, board, Camera.main, mouse,
             () => StartCoroutine(CaptureCompact("compact-freeze"))) :
             DemoMatchSequence.Run(game, board, Camera.main, mouse, name => _checkpoint = name, true);
         // Unroll nested iterators so assertion failures also reach the calling script.

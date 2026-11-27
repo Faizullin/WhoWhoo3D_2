@@ -12,11 +12,13 @@ Open the project in Unity **6000.4.5f1** and play `Assets/_Project/Scenes/Demo4x
 
 Select **terrace6x6** for a three-level board with playable walls. Right-drag to orbit, middle-drag to pan, scroll to zoom and press **Home** to fit the board. **A/D** rotate, **W/S** tilt and **Q/E** zoom. The gold cross marks the hovered tile’s paired edge.
 
-Each seat starts with one **Relay** and one **Freeze**. Select it, pick a gold-rimmed owned tile and preview the two marked destinations. Confirm to vacate your tile and claim both white tiles across its edge. A full destination face expands immediately. Cancel returns to normal claims and keeps the charge.
+Each seat starts with one **Relay** and one **Freeze**. For Relay, select the arrows icon, pick a gold-rimmed owned tile and preview the two marked destinations. Confirm to vacate your tile and claim both white tiles across its edge. A full destination face expands immediately. Cancel returns to normal claims and keeps the charge.
 
 **Freeze** spends your turn to ice a cube. Pick a tile on it and confirm. The next opponent cannot claim there or land Relay there, and can still send a wave into it. The blue tint clears after that opponent’s wave. The preview only offers cubes where the opponent has a legal claim both on and off the cube.
 
-Choose **Fixed charges** for the opening inventory, or **Supply after 4 claims** to earn one refill per seat per match. On a later turn, collect an empty Relay, Freeze, or **Beacon** card for free. A Beacon marks two white tiles you select on the same open face. Both must still be legal when your next turn begins. Its wave finishes before you choose a normal action. The scoreboard shows each seat’s remaining charges as R, F and B. The header shows the turn and scores. Select a card in the bottom tray to preview its targets. Use **Tab** and **Shift+Tab** to move between buttons and text fields in setup, the room browser, play and results. Press **Enter** to activate a focused button or **Escape** to cancel an ability preview or supply selection. Camera controls work throughout playback.
+Choose **Fixed charges** for the opening inventory, or **Supply after 4 claims** to earn one refill per seat per match. On a later turn, collect an empty Relay, Freeze, or **Beacon** card for free. A Beacon marks two white tiles you select on the same open face. Both must still be legal when your next turn begins. Its wave finishes before you choose a normal action. The header shows scores and public charges. On the board, one to four pips identify the seat that owns a tile.
+
+Hover or focus an inventory icon to see its name. Select the **ⓘ** button to see the local seat’s charges, ability rules and refill conditions. Close the guide to return to a pending target. **Large text** enlarges the interface to fit the screen. **Reduce motion** gives buttons immediate feedback and plays waves as successive board states. Both preferences are saved on this device. Use **Tab** and **Shift+Tab** to move between buttons and text fields in setup, the room browser, play and results. Press **Enter** to activate a focused button or **Escape** to cancel an ability preview or supply selection. Camera controls work throughout playback.
 
 ## Host or join on the same network
 
@@ -34,6 +36,6 @@ If a guest loses its connection, the room waits. Select **Reconnect** in the sam
 | LAN | Discoverable player-hosted rooms for 2–4 seats, direct joining, turn validation, reconnect and rematch |
 | Verification | Unity rule tests, a saved-scene pointer test, TCP Play Mode tests, a two-process macOS gameplay report, and [isolated Linux LAN tests](docs/reports/LAN.md) |
 | Map editor | Separate authoring demo with place, erase, paint, save and load |
-| Next implementation | Check the full match interface at large text sizes, in portrait with safe insets, and on wide screens. Then animate waves across paired edges. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
+| Next implementation | Highlight faces one claim away from expansion, then add a destination cue when a wave lands. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
 
 The capture command and its requirements are in the [gameplay report](docs/reports/README.md). Board formats and expansion rules are in the [map schema](docs/MAP_SCHEMA.md) and [wave specification](docs/WAVE_SPEC.md).

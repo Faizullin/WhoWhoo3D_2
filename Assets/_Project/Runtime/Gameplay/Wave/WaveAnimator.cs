@@ -5,6 +5,8 @@ using UnityEngine;
 using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Domain.Wave;
 using WhoWhoo3D.Gameplay.Board.View;
+using WhoWhoo3D.Gameplay.Board;
+using WhoWhoo3D.Gameplay.Game;
 
 namespace WhoWhoo3D.Gameplay.Wave
 {
@@ -65,6 +67,9 @@ namespace WhoWhoo3D.Gameplay.Wave
         public void StopAndSnapToModel()
         {
             StopAllCoroutines();
+            foreach (var tile in _flying)
+                if (tile) Destroy(tile.gameObject);
+            _flying.Clear();
             _displayScores.Clear();
             IsPlaying = false;
             IsPaused = false;
@@ -78,6 +83,7 @@ namespace WhoWhoo3D.Gameplay.Wave
         }
 
         private bool _stepAndPause;
+        private readonly List<Transform> _flying = new();
 
         /// <summary>Seconds one chain step takes. Settable so a speed control can drive it.</summary>
         public float StepDuration
@@ -227,7 +233,7 @@ namespace WhoWhoo3D.Gameplay.Wave
         private IEnumerator PlayFrame(WavePlaybackFrame frame, float duration)
         {
             var flights = frame.Flights;
-            if (flights.Count == 0 || duration <= 0f)
+            if (flights.Count == 0 || duration <= 0f || PresentationSettings.ReducedMotion)
                 yield break;
 
             // Slots being spent this step: fade these from their owner's colour to white.
@@ -238,7 +244,7 @@ namespace WhoWhoo3D.Gameplay.Wave
                 draining.Add((RequireSlotView(change.Slot), SlotView.ColorFor(change.Before)));
             }
 
-            var projectiles = new List<(Transform Tr, Vector3 From, Vector3 To)>();
+            var projectiles = new List<(Transform Tr, Vector3 From, Vector3 Crest, Vector3 To)>();
 
             foreach (var flight in flights)
             {
@@ -252,10 +258,14 @@ namespace WhoWhoo3D.Gameplay.Wave
                     ?? throw new InvalidOperationException(
                         $"No view for slot {flight.To}; board and scene are out of sync.");
 
-                projectiles.Add((
-                    CreateProjectile(flight.Owner, from.transform.position),
-                    from.transform.position,
-                    to.transform.position));
+                var physicalEdge = CubeGeometry.EdgeMidpoint(flight.From.Side.LocalIndex, flight.From.Edge);
+                var edge = from.transform.parent.TransformPoint(physicalEdge);
+                var outward = (from.transform.up + to.transform.up).normalized;
+                // A quadratic Bezier passes through the lifted physical edge at half time.
+                var crest = 2 * (edge + outward * arcHeight) - .5f * (from.transform.position + to.transform.position);
+                var tile = CreateProjectile(flight.Owner, from.transform.position);
+                _flying.Add(tile);
+                projectiles.Add((tile, from.transform.position, crest, to.transform.position));
             }
 
             if (projectiles.Count == 0)
@@ -269,11 +279,12 @@ namespace WhoWhoo3D.Gameplay.Wave
 
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                float arc = Mathf.Sin(t * Mathf.PI) * arcHeight;
+                if (PresentationSettings.ReducedMotion) break;
+                t = Mathf.SmoothStep(0, 1, t);
 
                 foreach (var p in projectiles)
                     if (p.Tr != null)
-                        p.Tr.position = Vector3.Lerp(p.From, p.To, t) + Vector3.up * arc;
+                        p.Tr.position = Vector3.Lerp(Vector3.Lerp(p.From, p.Crest, t), Vector3.Lerp(p.Crest, p.To, t), t);
 
                 // The source drains as its tile travels.
                 foreach (var d in draining)
@@ -285,6 +296,7 @@ namespace WhoWhoo3D.Gameplay.Wave
             foreach (var p in projectiles)
                 if (p.Tr != null)
                     Destroy(p.Tr.gameObject);
+            _flying.Clear();
         }
 
         private SlotView RequireSlotView(SlotId id) =>
@@ -296,7 +308,9 @@ namespace WhoWhoo3D.Gameplay.Wave
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"WaveTile_{owner}";
-            Destroy(go.GetComponent<Collider>());
+            var collider = go.GetComponent<Collider>();
+            collider.enabled = false;
+            Destroy(collider);
             go.transform.SetParent(transform, worldPositionStays: true);
             go.transform.position = position;
             go.transform.localScale = Vector3.one * tileSize;

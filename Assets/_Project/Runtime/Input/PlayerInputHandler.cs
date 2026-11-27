@@ -93,7 +93,7 @@ namespace WhoWhoo3D.Input
 
         private void OnGUI()
         {
-            if (!inputCamera || !gameController || !gameController.RenderedBoard ||
+            if (BoardControlsBlocked() || !inputCamera || !gameController || !gameController.RenderedBoard ||
                 gameController.InSetup || gameController.IsReviewingHistory || Event.current.type != EventType.Repaint) return;
             foreach (var seat in gameController.Roster.Players)
             {
@@ -154,6 +154,13 @@ namespace WhoWhoo3D.Input
 
         private void Update()
         {
+            if (BoardControlsBlocked())
+            {
+                _dragging = _keepFocus = false;
+                if (_hovered) _hovered.SetHovered(false);
+                _hovered = _partner = null;
+                return;
+            }
             bool clicked = WasClicked(out var clickPosition);
             Vector2 position = clicked ? clickPosition : GetPointerPosition();
             bool overPanel = OverPanel(position);
@@ -179,6 +186,14 @@ namespace WhoWhoo3D.Input
                 SlotClicked?.Invoke(slot.SlotId);
                 gameController?.OnSlotClicked(slot.SlotId);
             }
+        }
+
+        private bool BoardControlsBlocked()
+        {
+            if (_panels != null)
+                foreach (var panel in _panels)
+                    if (panel.BlocksBoardControls) return true;
+            return false;
         }
 
         private bool OverPanel(Vector2 position)

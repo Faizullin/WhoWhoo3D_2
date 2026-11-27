@@ -1,4 +1,5 @@
 using TMPro;
+using WhoWhoo3D.Domain.Match;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -34,22 +35,21 @@ internal static class HudControls
         return canvas;
     }
 
-    public static Vector2 Fit(Canvas canvas, RectTransform safe, float uiScale)
+    public static Vector2 Fit(Canvas canvas, RectTransform safe, HudViewport viewport, Vector2 pixels)
     {
-        var area = Screen.safeArea;
-        var viewport = new HudViewport(area, Screen.height, uiScale);
+        var area = viewport.SafeArea;
         canvas.scaleFactor = viewport.Scale;
-        safe.anchorMin = new Vector2(area.xMin / Screen.width, area.yMin / Screen.height);
-        safe.anchorMax = new Vector2(area.xMax / Screen.width, area.yMax / Screen.height);
+        safe.anchorMin = new Vector2(area.xMin / pixels.x, area.yMin / pixels.y);
+        safe.anchorMax = new Vector2(area.xMax / pixels.x, area.yMax / pixels.y);
         safe.offsetMin = safe.offsetMax = Vector2.zero;
         return viewport.Size;
     }
 
-    public static void Navigate(Canvas canvas)
+    public static void Navigate(Component root)
     {
         var keys = Keyboard.current;
         if (keys == null || !keys.tabKey.wasPressedThisFrame || EventSystem.current == null) return;
-        var list = canvas.GetComponentsInChildren<Selectable>();
+        var list = root.GetComponentsInChildren<Selectable>();
         var selected = EventSystem.current.currentSelectedGameObject;
         int index = System.Array.FindIndex(list, item => item.gameObject == selected);
         int direction = keys.shiftKey.isPressed ? -1 : 1;
@@ -127,7 +127,7 @@ internal static class HudControls
 
     internal sealed class Control
     {
-        public readonly Button Button;
+        public readonly HudButton Button;
         public readonly TextMeshProUGUI Caption;
         private readonly bool _primary;
         public RectTransform Rect => (RectTransform)Button.transform;
@@ -136,14 +136,14 @@ internal static class HudControls
         {
             _primary = primary;
             var bg = Panel(parent, name, Color.white);
-            Button = bg.gameObject.AddComponent<Button>();
+            Button = bg.gameObject.AddComponent<HudButton>();
             Button.targetGraphic = bg;
             var colors = Button.colors;
             colors.normalColor = primary ? Mint : Tile;
             colors.highlightedColor = colors.selectedColor = primary ? Color.white : new Color32(70, 105, 111, 255);
             colors.pressedColor = new Color32(106, 161, 148, 255);
             colors.disabledColor = new Color32(47, 56, 62, 255);
-            colors.fadeDuration = 0f;
+            colors.fadeDuration = .13f;
             Button.colors = colors;
             Button.onClick.AddListener(click);
             Caption = Label(bg.transform, "Caption", 15, primary ? Surface : White, true);
@@ -154,6 +154,23 @@ internal static class HudControls
             label.offsetMin = new Vector2(2, 0);
             label.offsetMax = new Vector2(-2, 0);
             Caption.text = name;
+        }
+
+        public AbilityGlyph AddGlyph(MatchAction action, Color tint, bool count = true)
+        {
+            var icon = AbilityGlyph.Create(Rect, action, tint);
+            var r = icon.rectTransform;
+            r.anchorMin = r.anchorMax = r.pivot = new Vector2(.5f, .5f);
+            r.sizeDelta = new Vector2(28, 28);
+            r.anchoredPosition = count ? new Vector2(-5, 0) : Vector2.zero;
+            Caption.gameObject.SetActive(count);
+            if (count)
+            {
+                Caption.alignment = TextAlignmentOptions.BottomRight;
+                Caption.fontSize = 13;
+                Caption.margin = new Vector4(0, 0, 4, 2);
+            }
+            return icon;
         }
 
         private Image _mark;

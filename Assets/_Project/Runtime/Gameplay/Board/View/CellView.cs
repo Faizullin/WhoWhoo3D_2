@@ -18,6 +18,15 @@ public class CellView : MonoBehaviour
     {
         CellId = cell.Id;
         transform.localPosition = position;
+        var mesh = GetComponent<MeshFilter>();
+        if (mesh != null) mesh.sharedMesh = BoardMeshes.Cube;
+        _body = GetComponent<Renderer>();
+        if (_body != null)
+        {
+            _body.sharedMaterial = SlotView.SharedMaterial();
+            _surface = new MaterialPropertyBlock();
+            PaintBody(false);
+        }
         gameObject.name = cell.Id.Value;
 
         foreach (var side in cell.ExposedSides)
@@ -35,21 +44,23 @@ public class CellView : MonoBehaviour
     }
 
     private Renderer _body;
-    private MaterialPropertyBlock _frost;
+    private MaterialPropertyBlock _surface;
     private bool _frozen;
 
     public void SetFrozen(bool frozen)
     {
         if (_frozen == frozen) return;
         _frozen = frozen;
-        _body ??= GetComponent<Renderer>();
+        PaintBody(frozen);
+    }
+
+    private void PaintBody(bool frozen)
+    {
         if (_body == null) return;
-        if (!frozen) { _body.SetPropertyBlock(null); return; }
-        _frost ??= new MaterialPropertyBlock();
-        var color = new Color(.20f, .80f, .97f);
-        _frost.SetColor("_BaseColor", color);
-        _frost.SetColor("_Color", color);
-        _body.SetPropertyBlock(_frost);
+        Color color = frozen ? new Color32(84, 168, 202, 255) : new Color32(65, 84, 101, 255);
+        _surface.SetColor("_BaseColor", color);
+        _surface.SetColor("_Color", color);
+        _body.SetPropertyBlock(_surface);
     }
 
     public SlotView GetSlotView(SlotId id) =>

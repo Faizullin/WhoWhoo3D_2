@@ -42,6 +42,8 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 
 The scene's `ScoreboardView` binds the local session and owns the screen lifecycle. `MatchScreens` presents setup, the LAN room and results. `MatchHud` presents the active turn for every map and seat mode. Both use `HudControls` for uGUI/TextMeshPro controls, safe-area layout and keyboard traversal. They send actions to the scene’s `GameController` or `LanMatchSession`. Each visible panel reports its rectangle through `IBoardInputPanel`, leaving the board between panels available for selection and camera gestures. The local debug timeline uses IMGUI and takes the lower tray’s space when open.
 
+The tray and guide share the ability descriptions and glyph colors in `AbilityPresentation`. `AbilityGlyph` builds each symbol in canvas coordinates. `MatchHud` reads charges from the seat inventory, and `AbilityGuide` owns modal focus. `PresentationSettings` stores local motion and text-size preferences. The layout recorder uses the same screen layout method with an offscreen camera at each target resolution.
+
 ## Code conventions
 
 - Group files by feature and match their namespaces to the module and folder. Use the existing `CellId`, `SideId`, `SlotId` and `PlayerId` types at boundaries.
@@ -163,6 +165,6 @@ The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery
 
 The discovery tests join a room by its advertised port, track changing seat counts, expire filled and closed rooms, and filter incompatible announcements. The standalone report captures the join screen before the guest selects the discovered room.
 
-Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The demo supports Fixed charges and Supply. Upcoming work covers large-text and screen-size checks, followed by board materials and paired-edge wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
+Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The demo supports Fixed charges and Supply. The display suite covers five resolutions at two requested UI scales. Next presentation work covers nearly full faces and wave landing cues. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 
 The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).

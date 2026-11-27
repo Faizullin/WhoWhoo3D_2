@@ -136,7 +136,7 @@ public static class GameSceneBuilder
 
         go.transform.position = new Vector3(centre, height, centre - back);
         go.transform.rotation = Quaternion.Euler(55f, 0f, 0f);
-        camera.backgroundColor = new Color(0.29f, 0.28f, 0.27f);
+        camera.backgroundColor = new Color(.092f, .135f, .18f);
         camera.clearFlags = CameraClearFlags.SolidColor;
         return camera;
     }

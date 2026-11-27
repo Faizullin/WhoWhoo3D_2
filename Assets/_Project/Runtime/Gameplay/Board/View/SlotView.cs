@@ -29,6 +29,7 @@ public sealed class SlotView : MonoBehaviour
 
     private bool _locked, _relayHint;
     private GameObject _hoverOutline;
+    private MeshFilter _stamp;
     public bool IsClaimHighlighted { get; private set; }
 
     public void SetTurnHint(bool legal, bool locked, bool relayHint = false)
@@ -77,6 +78,7 @@ public sealed class SlotView : MonoBehaviour
 
         var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
         visual.transform.SetParent(transform, false);
+        visual.GetComponent<MeshFilter>().sharedMesh = BoardMeshes.Cube;
         _renderer = visual.GetComponent<Renderer>();
         _renderer.sharedMaterial = SharedMaterial();
 
@@ -120,11 +122,30 @@ public sealed class SlotView : MonoBehaviour
 
     private void Render(PlayerId owner)
     {
+        if (!owner.IsNone && _stamp == null)
+        {
+            var go = new GameObject("Seat pips", typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = Vector3.up * .52f;
+            _stamp = go.GetComponent<MeshFilter>();
+            var ink = go.GetComponent<MeshRenderer>();
+            ink.sharedMaterial = SharedMaterial();
+            var block = new MaterialPropertyBlock();
+            Color dark = new Color32(24, 33, 44, 255);
+            block.SetColor(BaseColorId, dark);
+            block.SetColor(ColorId, dark);
+            ink.SetPropertyBlock(block);
+        }
+        if (_stamp != null)
+        {
+            _stamp.gameObject.SetActive(!owner.IsNone);
+            if (!owner.IsNone) _stamp.sharedMesh = BoardMeshes.SeatStamp(owner.Value);
+        }
         var color = ColorFor(owner);
         if (!_displayOverride.HasValue && owner.IsNone)
         {
-            if (IsClaimHighlighted) color = new Color(0.55f, 1f, 0.92f);
-            else if (_locked) color = new Color(0.32f, 0.35f, 0.38f);
+            if (IsClaimHighlighted) color = new Color32(142, 214, 199, 255);
+            else if (_locked) color = new Color32(91, 105, 119, 255);
         }
         ShowColor(color);
     }
@@ -167,11 +188,11 @@ public sealed class SlotView : MonoBehaviour
     {
         switch (index)
         {
-            case 1: return new Color(0.85f, 0.25f, 0.22f); // red
-            case 2: return new Color(0.20f, 0.30f, 0.90f); // blue
-            case 3: return new Color(0.25f, 0.70f, 0.30f); // green
-            case 4: return new Color(0.95f, 0.80f, 0.20f); // yellow
-            default: return new Color(0.96f, 0.96f, 0.96f); // unclaimed
+            case 1: return new Color32(241, 109, 92, 255); // coral
+            case 2: return new Color32(95, 153, 247, 255); // blue
+            case 3: return new Color32(193, 138, 231, 255); // violet
+            case 4: return new Color32(249, 194, 80, 255); // amber
+            default: return new Color32(211, 222, 226, 255); // unclaimed
         }
     }
 }

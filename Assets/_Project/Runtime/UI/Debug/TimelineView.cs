@@ -31,6 +31,9 @@ namespace WhoWhoo3D.UI.Debugging
         private const float PanelHeight = 108f;
 
         private Rect _panelPixels;
+        private HUD.ScoreboardView _hud;
+        public bool BlocksBoardControls => false;
+
         public bool CoversScreenPoint(Vector2 point) => isActiveAndEnabled && visible && gameController != null && gameController.Connection == null &&
             _panelPixels.Contains(new Vector2(point.x, Screen.height - point.y));
 
@@ -41,6 +44,7 @@ namespace WhoWhoo3D.UI.Debugging
 
         private void Awake()
         {
+            _hud = GetComponent<HUD.ScoreboardView>();
             if (gameController == null)
                 gameController = FindAnyObjectByType<GameController>();
         }
@@ -52,7 +56,7 @@ namespace WhoWhoo3D.UI.Debugging
 
         private void Update()
         {
-            if (gameController == null || gameController.InSetup || gameController.Connection != null) return;
+            if ((_hud != null && _hud.BlocksBoardControls) || gameController == null || gameController.InSetup || gameController.Connection != null) return;
 
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             if (keyboard == null) return;

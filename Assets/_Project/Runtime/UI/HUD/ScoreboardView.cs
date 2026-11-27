@@ -29,19 +29,26 @@ namespace WhoWhoo3D.UI.HUD
             _screens = new MatchScreens(transform, gameController, _session);
         }
 
-        private void LateUpdate()
+        private void LateUpdate() => Layout(Screen.safeArea, new Vector2(Screen.width, Screen.height),
+            uiScale * (PresentationSettings.LargeText ? 2f : 1f));
+
+        /// <summary>Lay out the active screen for a display or offscreen camera in pixel coordinates.</summary>
+        public void Layout(Rect safeArea, Vector2 pixels, float scale)
         {
             if (gameController == null || gameController.Roster == null) return;
+            var viewport = new HudViewport(safeArea, pixels.y, scale);
             bool lobby = _session.State != LanState.Closed && _session.State != LanState.Playing;
             bool playing = !lobby && !gameController.InSetup && !gameController.IsGameOver;
             _hud.SetVisible(playing);
             if (playing)
             {
                 _screens.Hide();
-                _hud.Refresh(uiScale, _timeline != null && _timeline.IsOpen);
+                _hud.Refresh(viewport, pixels, _timeline != null && _timeline.IsOpen);
             }
-            else _screens.Refresh(uiScale, lobby);
+            else _screens.Refresh(viewport, pixels, lobby);
         }
+
+        public bool BlocksBoardControls => isActiveAndEnabled && _hud.GuideOpen;
 
         public bool CoversScreenPoint(Vector2 point) => isActiveAndEnabled &&
             (_screens.Covers(point) || _hud.Covers(point));

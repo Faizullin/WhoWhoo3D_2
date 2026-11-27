@@ -47,12 +47,12 @@ costs a confusing play session to find. `Editor/GameSceneBuilder.cs` generates a
 
 **Status: Partial.**
 
-The current board uses primitive cubes and code-spawned tiles. Mint highlights identify legal claims. Hover marks the paired edge through terrain. The next presentation task is animating the path across a corner.
+The board shares beveled meshes between cells and tiles. Mint highlights identify legal claims, seat pips identify ownership, and hover marks the paired edge through terrain. Waves follow the edge when turning a corner.
 
 ### Mesh / visual
 - [ ] Replace `GameObject.CreatePrimitive` tiles with an authored mesh or prefab. Tiles are
       spawned per slot (48 on Demo4x4), so this is a batching question too.
-- [ ] A real cube prefab with proper materials, edge bevels, and a readable top surface.
+- [x] Give board cubes a matte surface and beveled edges that show the joins between cells.
 - [ ] Distinguish **face state** visually: free, held, one-tile-from-full, locked by an enemy.
       Right now a full face and a nearly-full face look identical.
 - [ ] Buildable/placeable item visuals — the piece the future map editor and abilities need.
@@ -61,7 +61,8 @@ The current board uses primitive cubes and code-spawned tiles. Mint highlights i
 ### UI interaction
 - [x] Replace the live scoreboard and inventory with a safe-area uGUI/TextMeshPro HUD. Exercise four-seat Freeze at 800×480.
 - [x] Use shared controls and keyboard focus in setup, the LAN browser, waiting room and results.
-- [ ] Capture the full screen-size and text-scale matrix in the [gameplay roadmap](GAMEPLAY_ROADMAP.md).
+- [x] Capture five screen sizes at two text scales, including the inventory guide. [Layout gallery](reports/README.md#inventory-and-adaptive-layouts)
+- [x] Show ability names on hover or focus, and expose charges, descriptions and motion preferences in the guide.
 - [x] Hover and selection feedback on tiles — the single biggest legibility gap.
 - [x] Click affordances: highlight legal slots for the active player, dim locked faces.
 - [x] Show the next player in the hot-seat header as soon as control changes hands.

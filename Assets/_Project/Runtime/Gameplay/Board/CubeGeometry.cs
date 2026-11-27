@@ -89,6 +89,10 @@ public static class CubeGeometry
         return faceNormal * (FaceOffset + SurfaceLift) + edgeNormal * EdgeOffset;
     }
 
+    /// <summary>Midpoint of the physical cube edge crossed by this slot's wave flight.</summary>
+    public static Vector3 EdgeMidpoint(int face, int edge) =>
+        (Normals[face] + Normals[EdgeNeighbours(face)[edge]]) * FaceOffset;
+
     /// <summary>Lays the tile flat in its face's plane.</summary>
     public static Quaternion SlotLocalRotation(int face, int edge)
     {

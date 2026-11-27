@@ -150,13 +150,19 @@ public static class DemoMatchSequence
         var initialPosition = camera.transform.position;
         checkpoint("terrace");
         yield return Hold(record ? 14 : 1);
+        yield return CompactHudSequence.ClickControl(game, mouse, "Ability info");
+        checkpoint("inventory-guide");
+        yield return Hold(record ? 18 : 1);
+        yield return CompactHudSequence.ClickControl(game, mouse, "Close guide");
         var tread = new SideId(new CellId("cell_2_0_0"), 0);
         var riser = new SideId(new CellId("cell_2_1_1"), 5);
         var upper = new SideId(riser.Cell, 0);
         var route = new[] { new SlotId(riser, 0), new SlotId(riser, 2), new SlotId(riser, 3),
             new SlotId(tread, 0), new SlotId(tread, 1), new SlotId(tread, 2) };
+        MatchSnapshot beforeClimb = null;
         for (int i = 0; i < route.Length; i++)
         {
+            if (!record && i == route.Length - 1) beforeClimb = MatchSnapshot.Capture(game);
             Require(game.TryPlayerAction(route[i]), "Terrace claim failed at " + route[i]);
             if (i == route.Length - 1) break;
             var replies = BoardActions.LegalMoves(game.Board, game.ActivePlayer.Id);
@@ -171,6 +177,27 @@ public static class DemoMatchSequence
         while (!game.AcceptsBoardInput && Time.realtimeSinceStartup < settledBy) yield return null;
         Require(game.AcceptsBoardInput && game.ActivePlayer.Id.Value == 2, "Terrace wave did not settle.");
         Require(game.Board.GetSlot(new SlotId(upper, 3)).Owner == new PlayerId(1), "Wave missed the upper terrace.");
+        if (!record)
+        {
+            string expected = JsonUtility.ToJson(MatchSnapshot.Capture(game));
+            bool originalMotion = PresentationSettings.ReducedMotion;
+            try
+            {
+                PresentationSettings.ReducedMotion = true;
+                game.RestoreMatch(game.Setup, beforeClimb);
+                Require(game.TryPlayerAction(route[route.Length - 1]), "Reduced-motion climb did not start");
+                float deadlineForClimb = Time.realtimeSinceStartup + 10;
+                while (!game.AcceptsBoardInput && Time.realtimeSinceStartup < deadlineForClimb)
+                {
+                    Require(!game.WaveAnimator.GetComponentsInChildren<Transform>().Any(t => t.name.StartsWith("WaveTile_")),
+                        "Reduced motion spawned a flying tile");
+                    yield return null;
+                }
+                Require(game.AcceptsBoardInput && expected == JsonUtility.ToJson(MatchSnapshot.Capture(game)),
+                    "Reduced-motion playback changed the settled terrace match");
+            }
+            finally { PresentationSettings.ReducedMotion = originalMotion; }
+        }
         var pointer = new MouseState { position = new Vector2(camera.pixelWidth * .6f, camera.pixelHeight * .45f) };
         int turnBeforeOrbit = game.TurnNumber;
         InputSystem.QueueStateEvent(mouse, pointer.WithButton(MouseButton.Right));

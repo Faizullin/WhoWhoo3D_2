@@ -25,6 +25,7 @@ SCENES = {
     "victory": "Match result",
     "restart": "Opening board after Play again",
     "terrace": "Terrace 6×6 opening",
+    "inventory-guide": "Inventory charges and ability guide",
     "terrace-wave": "Expansion from tread to riser",
     "terrace-orbit": "The terrace after orbiting to the far side",
     "relay": "Relay target preview before confirmation",
@@ -129,11 +130,12 @@ def main():
         (capture / "Editor").mkdir()
         shutil.copy(TOOLS / "BuildReportPlayer.cs", capture / "Editor")
         shutil.copy(TOOLS / "MatchRecorder.cs", capture)
+        shutil.copy(TOOLS / "LayoutRecorder.cs", capture)
         shutil.copy(TOOLS / "LanMatchRecorder.cs", capture)
         for sequence in ("DemoMatchSequence", "CompactHudSequence"):
             shutil.copy(project / f"Assets/_Project/Tests/PlayMode/{sequence}.cs", capture)
         (capture / "ReportCapture.asmdef").write_text(json.dumps({
-            "name": "ReportCapture", "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay", "WhoWhoo3D.Networking", "UnityEngine.UI", "Unity.InputSystem"]}))
+            "name": "ReportCapture", "references": ["WhoWhoo3D.Domain", "WhoWhoo3D.Gameplay", "WhoWhoo3D.Networking", "WhoWhoo3D.UI", "Unity.TextMeshPro", "UnityEngine.UI", "Unity.InputSystem"]}))
         (capture / "csc.rsp").write_text("-langversion:latest\n")
         (capture / "Editor/ReportBuild.asmdef").write_text(json.dumps({"name": "ReportBuild", "includePlatforms": ["Editor"]}))
         player = work / "Game.app"
@@ -150,6 +152,8 @@ def main():
         compact_log = work / "compact.log"
         run([exe, "-screen-fullscreen", "0", "-screen-width", "800", "-screen-height", "480", "-logFile", compact_log],
             compact_log, env=dict(env, WHOWHOO_COMPACT_HUD="1"))
+        layout_log = work / "layouts.log"
+        run([*command, "-logFile", layout_log], layout_log, env=dict(env, WHOWHOO_LAYOUTS="1"))
         lan = record_lan(command, env, frames, work)
         lines = (frames / "timeline.tsv").read_text().splitlines()
         times = {label: int(frame) / FPS for frame, label in (line.split("\t") for line in lines)}
@@ -161,6 +165,15 @@ def main():
         screens.mkdir(parents=True)
         for name in [*SCENES, "compact-setup", "compact-freeze", "lan-lobby", "lan-room-browser", "lan-guest-turn", "lan-host-result"]:
             shutil.copy(frames / f"{name}.png", screens)
+        layouts = screens / "layouts"
+        layouts.mkdir()
+        layout_sizes = ("800x480", "1280x720", "1920x1080", "3440x1440", "360x640")
+        layout_stages = ("setup", "room", "target", "guide", "result")
+        for size in layout_sizes:
+            for scale in (1, 2):
+                for stage in layout_stages:
+                    name = f"{size}-{scale}x-{stage}"
+                    shutil.copy(frames / "layouts" / (name + ".png"), layouts)
         movie = output / "demo4x4.mp4"
         run(["ffmpeg", "-loglevel", "error", "-framerate", str(FPS), "-i", frames / "frame-%05d.png",
              "-vf", "scale=1280:720", "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", movie])
@@ -189,6 +202,19 @@ def main():
                    "Real pointer input selected Freeze, picked a cube and orbited the camera with the preview still active. "
                    "The capture driver exercised Cancel, Escape and Confirm and checked that only Confirm spent a turn.", "",
                    "![Four-seat terrace with Freeze selected](screens/compact-freeze.png)", ""]
+        report += ["## Inventory and adaptive layouts", "",
+                   "![Four-seat inventory guide](screens/layouts/1280x720-1x-guide.png)", "",
+                   "These offscreen renders use the game’s camera and controls. The four-seat waiting room, Freeze preview "
+                   "and result are staged for layout inspection. The portrait safe area has simulated side, top and bottom insets. "
+                   "The large-text setting requests 2× scaling and fits to the available space. "
+                   "Each capture checks control bounds, overlap and text overflow.", "",
+                   "| Viewport | UI scale | Setup | LAN room | Target | Inventory | Result |",
+                   "| --- | --- | --- | --- | --- | --- | --- |"]
+        for size in layout_sizes:
+            for scale in (1, 2):
+                links = [f"[{stage}](screens/layouts/{size}-{scale}x-{stage}.png)" for stage in layout_stages]
+                report.append(f"| {size} | {scale}× | " + " | ".join(links) + " |")
+        report.append("")
         outcome = f"P{lan['winner']} won" if lan['winner'] else "a draw"
         report += ["## LAN match", "",
                    f"Two macOS player processes ran on one computer. The guest discovered the named room over UDP and joined its advertised TCP port. The host played P1 and the guest played P2. "
@@ -207,8 +233,9 @@ def main():
         (output / "README.md").write_text("\n".join(report))
         DEST.mkdir(parents=True, exist_ok=True)
         (DEST / "screens").mkdir(exist_ok=True)
-        for source in [*screens.iterdir(), movie, output / "README.md"]:
+        for source in [*screens.rglob("*.png"), movie, output / "README.md"]:
             target = DEST / source.relative_to(output)
+            target.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as staged, source.open("rb") as src:
                 shutil.copyfileobj(src, staged)
             os.chmod(staged.name, 0o644)

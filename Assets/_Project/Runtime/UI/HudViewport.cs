@@ -8,9 +8,11 @@ public readonly struct HudViewport
     private readonly Vector2 _origin;
     public readonly float Scale;
     public readonly Vector2 Size;
+    public readonly Rect SafeArea;
 
     public HudViewport(Rect safeArea, float screenHeight, float uiScale)
     {
+        SafeArea = safeArea;
         _origin = new Vector2(safeArea.xMin, screenHeight - safeArea.yMax);
         float preferred = Mathf.Max(1f, safeArea.height / 900f) * uiScale;
         // Keep the four-seat setup and its room controls reachable at large text scales.

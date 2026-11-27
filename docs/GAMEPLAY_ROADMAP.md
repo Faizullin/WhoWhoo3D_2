@@ -43,13 +43,15 @@ The shared scene now uses a safe-area uGUI canvas and TextMeshPro for live match
 
 Setup, LAN discovery, the waiting room and results now use the same controls and typography as the live HUD. Tab and Shift+Tab reach enabled buttons and text fields. The result initially focuses Play again for local players and hosts, or Leave room for guests. A brief “Pass to P2” prompt identifies the next hot-seat player while the board stays playable. Saved-scene checks cover keyboard setup, ability cancellation, replay, returning to setup, and joining and leaving a discovered room.
 
-**Next implementation.** Extend the automated layout captures across the screen sizes and text scales below. Check the full four-seat room and longest ability prompts first. Then begin the paired-edge wave animation with a tread-to-wall transition on the terrace.
+The ability tray uses a pair of arrows for Relay, a snowflake for Freeze and a signal for Beacon. Hover or keyboard focus shows the ability name. The info button opens the current seat’s inventory and rules. Large text and reduced motion can be toggled in the guide. Closing it restores the pending target and keyboard focus.
 
-**Acceptance.** Automatically capture setup, a four-seat room, ability targeting and victory at 800×480, 1280×720, 1920×1080 and 3440×1440, plus a 360×640 portrait layout probe with simulated safe insets. Repeat with large text. Check focused controls, wrapping, overlap, click-through and the ability to cancel using the keyboard. Portrait checks assess layout only.
+The report renders setup, a four-seat waiting room, a selected Freeze target, the inventory guide and results at 800×480, 1280×720, 1920×1080, 3440×1440 and 360×640. Each is checked at default and large scale. Portrait uses simulated insets for layout inspection. A separate saved-scene test exercises pointer and keyboard input, focus restoration and cancellation. [Screenshots at each size](reports/README.md#inventory-and-adaptive-layouts)
 
 ## Animation and materials
 
-Bevel cube edges and give the board a quiet material so ownership and connections stand out. Animate a claim settling onto its face, then move each expansion along the actual paired edge, including wall corners. Finish each step with a brief destination mark and score update. For Freeze use a frost rim and countdown. For Phase fade the body while keeping the outline and occupant marks visible.
+The board uses beveled cube and tile meshes. Ownership has a distinct color and pip count per seat. Wave flights follow each slot’s physical edge, including the turn from a tread onto a riser. Reduced motion preserves the sequence of ownership and score updates while suppressing the moving tiles. The saved-scene test repeats a terrace climb with reduced motion and compares the resulting match snapshots.
+
+**Next implementation.** Mark a face that is one claim away from expansion. Add a brief landing cue on the destination, including a static mark in reduced motion. Give frozen cubes a distinct rim and expiry indicator. Then profile the longest terrace wave.
 
 Drive these effects from the existing wave playback steps. The simulator determines ownership and scores. Skipping playback, reconnecting mid-wave, accelerating the replay or enabling reduced motion must land on the same result. Smooth user-driven camera motion and offer an immediate reset. Reduced motion should replace flights and pulses with static source/destination marks. [Xbox guidance on camera motion and visual distraction](https://learn.microsoft.com/en-us/gaming/accessibility/xbox-accessibility-guidelines/117)
 
