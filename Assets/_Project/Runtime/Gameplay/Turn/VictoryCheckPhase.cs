@@ -18,8 +18,11 @@ public sealed class VictoryCheckPhase : IGamePhase
     public bool GameOver { get; private set; }
     public PlayerId Winner { get; private set; }
 
-    public VictoryCheckPhase(GameController game)
+    private readonly bool _openingWave;
+
+    public VictoryCheckPhase(GameController game, bool openingWave = false)
     {
+        _openingWave = openingWave;
         _game = game;
     }
 
@@ -51,17 +54,19 @@ public sealed class VictoryCheckPhase : IGamePhase
 
     public void Exit()
     {
+        if (!_openingWave) _game.Abilities.FinishTurn();
         if (GameOver)
         {
             _game.DeclareGameOver(Winner);
         }
-        else
+        else if (!_openingWave || !_game.ActivePlayer.IsAlive)
         {
+            if (_openingWave) _game.Abilities.FinishTurn();
             _game.Roster.AdvanceToNextAlive();
             _game.BeginNextTurn();
         }
     }
 
-    public IGamePhase NextPhase() => GameOver ? null : _game.CreatePlayerTurnPhase();
+    public IGamePhase NextPhase() => GameOver ? null : _game.StartSeatTurn();
 }
 

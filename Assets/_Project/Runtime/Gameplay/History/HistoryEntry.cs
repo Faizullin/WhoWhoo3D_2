@@ -11,7 +11,7 @@ public enum HistoryKind
 
     /// <summary>One chain step of an expansion.</summary>
     WaveStep,
-    Relay,
+    Relay, Freeze, Beacon, BeaconResult, Supply,
 }
 
 /// <summary>
@@ -23,6 +23,7 @@ public enum HistoryKind
 /// </summary>
 public sealed class HistoryEntry
 {
+    internal WhoWhoo3D.Gameplay.Game.MatchSnapshot BeforeAction { get; set; }
     public HistoryKind Kind { get; }
 
     /// <summary>Turn number this belongs to, 1-based. Groups entries in the UI.</summary>

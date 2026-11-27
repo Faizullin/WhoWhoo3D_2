@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Board;
 using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.Game;
@@ -137,7 +138,7 @@ public static class DemoMatchSequence
         checkpoint("restart");
         yield return Hold(record ? 14 : 1);
 
-        game.StartLocalMatch("terrace6x6", 2);
+        game.StartMatch(new MatchSetup("terrace6x6", true, new SeatControl[2]));
         yield return Hold(2);
         var initialView = camera.transform.rotation;
         var initialPosition = camera.transform.position;
@@ -216,6 +217,42 @@ public static class DemoMatchSequence
         int seat = game.ActivePlayer.Id.Value;
         Require(game.ConfirmRelay() && game.Roster.Players[seat - 1].RelaySpent, "Relay did not spend its charge.");
         yield return Hold(record ? 12 : 1);
+        while (!game.AcceptsBoardInput) yield return null;
+        checkpoint("supply");
+        yield return Hold(record ? 14 : 1);
+        int turn = game.TurnNumber;
+        var caster = game.ActivePlayer.Id;
+        Require(game.TakeSupply(MatchAction.Beacon) && game.TurnNumber == turn, "Supply must leave the turn open.");
+        var allSlots = game.Board.Cells.Values.SelectMany(c => c.ExposedSides).SelectMany(s => s.Slots).ToList();
+        var ice = allSlots.First(s => game.Abilities.CanTarget(MatchAction.Freeze, s.Id) &&
+            game.Board.GetCell(s.Id.Side.Cell).Position.Y == 1);
+        game.SelectAbility(MatchAction.Freeze);
+        game.OnSlotClicked(ice.Id);
+        Require(game.ConfirmAbility(), "Could not freeze a cube.");
+        checkpoint("freeze");
+        yield return Hold(record ? 16 : 1);
+        var safe = allSlots.First(s => game.Abilities.CanClaim(s.Id) && game.Board.GetSide(s.Id.Side).Slots.All(t => t.IsNeutral));
+        Require(game.TryPlayerAction(safe.Id), "Expected an unfrozen reply.");
+        while (!game.AcceptsBoardInput) yield return null;
+        Require(!game.Abilities.Frozen(ice.Id.Side.Cell), "The ice did not thaw.");
+        var marks = game.Board.Cells.Values.SelectMany(c => c.ExposedSides)
+            .Where(f => f.SlotCount == 2 && f.Slots.All(s => game.Abilities.CanClaim(s.Id))).First().Slots.ToArray();
+        game.SelectAbility(MatchAction.Beacon);
+        game.OnSlotClicked(marks[0].Id);
+        game.OnSlotClicked(marks[1].Id);
+        Require(game.ConfirmAbility(), "Could not arm the Beacon.");
+        checkpoint("beacon");
+        yield return Hold(record ? 16 : 1);
+        var replySlot = allSlots.First(s => s.Id.Side != marks[0].Id.Side && game.Abilities.CanClaim(s.Id) &&
+            game.Board.GetSide(s.Id.Side).SlotCount > 2 && game.Board.GetSide(s.Id.Side).Slots.All(t => t.IsNeutral));
+        Require(game.TryPlayerAction(replySlot.Id) && game.WaveAnimator.IsPlaying, "Beacon did not start the opening wave.");
+        Require(!game.AcceptsBoardInput, "Beacon playback allowed another action.");
+        checkpoint("beacon-wave");
+        yield return Hold(record ? 12 : 1);
+        float deadlineForBeacon = Time.realtimeSinceStartup + 12;
+        while (!game.AcceptsBoardInput && !game.IsGameOver && Time.realtimeSinceStartup < deadlineForBeacon) yield return null;
+        Require(game.AcceptsBoardInput && game.ActivePlayer.Id == caster,
+            $"Beacon must return control to {caster}. Active {game.ActivePlayer.Id}, phase {game.CurrentPhase}, winner {game.Winner}.");
     }
 
     private static IEnumerator Hold(int frames)

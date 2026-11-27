@@ -19,8 +19,8 @@ One player hosts and plays P1. Guests select an advertised room or enter an IPv4
 
 - [x] Relay with one charge per seat, a target preview, confirm/cancel and history.
 - [x] Validate and replicate the same action in Solo, Hot-seat and player-hosted LAN. Restore the charge on rematch and its spent state on reconnect.
-- [ ] Add Freeze with a visible expiry and a shared typed inventory for both powers.
-- [ ] Run mirrored-seat balance fixtures. Try Beacon next for delayed threats, then compare Phase, Bank and Switchback. [Ability rules, counterplay and research](GAMEPLAY_ROADMAP.md)
+- [x] Add Freeze, delayed Beacon, typed commands and a per-seat inventory. Allow hosts and local players to choose Fixed charges or Supply.
+- [ ] Run mirrored-seat balance fixtures. Compare Freeze and delayed Beacon against ordinary claims before trying Phase, Bank or Switchback. [Ability rules, counterplay and research](GAMEPLAY_ROADMAP.md)
 
 ---
 

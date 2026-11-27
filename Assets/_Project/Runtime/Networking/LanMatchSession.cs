@@ -20,7 +20,7 @@ namespace WhoWhoo3D.Networking
     public sealed class LanMatchSession : MonoBehaviour, IMatchConnection
     {
         public const int DefaultPort = 47771;
-        internal const int ProtocolVersion = 2;
+        internal const int ProtocolVersion = 3;
 
         public LanState State { get; private set; }
         public bool IsHost => _listener != null;
@@ -65,13 +65,13 @@ namespace WhoWhoo3D.Networking
             _browser = null;
         }
 
-        public void Host(string map, int players, int port = DefaultPort, string roomName = null)
+        public void Host(string map, int players, int port = DefaultPort, string roomName = null, bool supply = false)
         {
             if (State != LanState.Closed) throw new InvalidOperationException("Leave the current room first.");
             roomName = string.IsNullOrWhiteSpace(roomName) ? "Game room" : roomName.Trim();
             if (!RoomAnnouncement.ValidLabel(roomName, RoomAnnouncement.MaxNameLength))
                 throw new ArgumentException("Enter a room name of up to 32 characters.");
-            var setup = new MatchSetup(map, new SeatControl[players]);
+            var setup = new MatchSetup(map, supply, new SeatControl[players]);
             string digest = MapDigest(map);
             var listener = new TcpListener(IPAddress.Any, port);
             try
@@ -258,7 +258,7 @@ namespace WhoWhoo3D.Networking
                 peer.Seat = seat;
                 _tokens[seat] ??= Guid.NewGuid().ToString("N");
                 peer.Send(new LanMessage { kind = "welcome", seat = seat, token = _tokens[seat],
-                    map = _setup.MapName, digest = _digest, players = _setup.Seats.Count });
+                    map = _setup.MapName, supply = _setup.Supply, digest = _digest, players = _setup.Seats.Count });
                 return;
             }
             if (peer.Seat == 0) throw new IOException("Join the room first.");
@@ -289,7 +289,7 @@ namespace WhoWhoo3D.Networking
                     if (message.players < 2 || message.players > 4 || message.seat < 2 || message.seat > message.players ||
                         string.IsNullOrEmpty(message.token) || MapDigest(message.map) != message.digest)
                         throw new IOException("The selected map or room settings differ. Use the same game and map.");
-                    _setup = new MatchSetup(message.map, new SeatControl[message.players]);
+                    _setup = new MatchSetup(message.map, message.supply, new SeatControl[message.players]);
                     LocalSeat = message.seat;
                     _token = message.token;
                     SetState(LanState.Lobby, "Waiting for players…");

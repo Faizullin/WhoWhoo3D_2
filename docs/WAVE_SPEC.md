@@ -46,6 +46,14 @@ that face**. One enemy tile locks the entire face; the only way in is expansion.
 
 A face where everyone's tiles are white is open to anybody.
 
+### R1b. Abilities and turn timing
+
+A seat can spend its action on Relay, Freeze or a charged Beacon. Previewing or canceling preserves both turn and charge. A frozen cube blocks ordinary claims, Relay landings and Beacon placements or landings. Its paired edges and all incoming and outgoing wave steps still operate. The ice lasts through the next living opposing seat’s action and its wave. To freeze a cube there must be an ordinary claim for that opponent both on the cube and elsewhere. A Relay source on ice can leave for a legal destination.
+
+Beacon chooses two distinct white edges on the same claimable face. At the owner’s next turn boundary, both land together if both are still legal. Otherwise both marks clear. Elimination clears a pending Beacon. Resolve any resulting chain and check victory before enabling the owner's ordinary input. The player cannot issue actions during playback.
+
+In Supply matches the fourth ordinary claim earns a single refill, available on a subsequent turn. A confirmed refill fills one empty card and keeps the current action available. Neither ability use nor the number of wave steps advances the count. Rematches restore opening charges.
+
 ### R2. Expansion trigger
 
 A face expands when **every slot it has is claimed by one player**, and it has at least one

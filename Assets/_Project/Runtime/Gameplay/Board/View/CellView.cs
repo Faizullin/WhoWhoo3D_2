@@ -34,6 +34,24 @@ public class CellView : MonoBehaviour
         }
     }
 
+    private Renderer _body;
+    private MaterialPropertyBlock _frost;
+    private bool _frozen;
+
+    public void SetFrozen(bool frozen)
+    {
+        if (_frozen == frozen) return;
+        _frozen = frozen;
+        _body ??= GetComponent<Renderer>();
+        if (_body == null) return;
+        if (!frozen) { _body.SetPropertyBlock(null); return; }
+        _frost ??= new MaterialPropertyBlock();
+        var color = new Color(.20f, .80f, .97f);
+        _frost.SetColor("_BaseColor", color);
+        _frost.SetColor("_Color", color);
+        _body.SetPropertyBlock(_frost);
+    }
+
     public SlotView GetSlotView(SlotId id) =>
         _slotViews.TryGetValue(id, out var view) ? view : null;
 

@@ -53,12 +53,12 @@ internal sealed class LanRoomPanel
         if (GUILayout.Button("Join by address", GUILayout.Height(35))) Run(() => _session.Join(_address));
     }
 
-    public void DrawHost(string map, int players)
+    public void DrawHost(string map, int players, bool supply)
     {
         GUILayout.Label("Room name");
         _roomName = GUILayout.TextField(_roomName, 32);
         DrawError();
-        if (GUILayout.Button("Host room", GUILayout.Height(35))) Run(() => _session.Host(map, players, roomName: _roomName));
+        if (GUILayout.Button("Host room", GUILayout.Height(35))) Run(() => _session.Host(map, players, roomName: _roomName, supply: supply));
     }
 
     public void DrawLobby()

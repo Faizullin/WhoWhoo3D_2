@@ -28,6 +28,10 @@ SCENES = {
     "terrace-wave": "Expansion from tread to riser",
     "terrace-orbit": "The terrace after orbiting to the far side",
     "relay": "Relay target preview before confirmation",
+    "supply": "A free supply choice after four ordinary claims",
+    "freeze": "Frozen cube during the opposing turn",
+    "beacon": "Public Beacon marks before the opponent replies",
+    "beacon-wave": "Beacon starting a wave before its owner acts",
 }
 FPS = 12
 
@@ -84,7 +88,11 @@ def record_lan(command, env, frames, work):
             raise RuntimeError("Host and guest finished with different match states.")
         (frames / "complete").touch()
         for player, log in players:
-            if player.wait(timeout=10):
+            try:
+                code = player.wait(timeout=45)
+            except subprocess.TimeoutExpired as error:
+                raise RuntimeError(f"LAN player did not exit after capture.\n{log.read_text(errors='replace')[-3000:]}") from error
+            if code:
                 raise RuntimeError(f"LAN player failed.\n{log.read_text(errors='replace')[-3000:]}")
         return result
     finally:
@@ -165,7 +173,7 @@ def main():
             "checks restart, climbs a riser and clicks a rear face after orbiting.", "",
             "The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera "
             "and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, "
-            "rotates the camera by dragging, clicks the far wall and previews Relay. "
+            "rotates the camera by dragging, clicks the far wall, uses Relay and Freeze, takes supply and resolves a Beacon. "
             "Setup, restart and Relay confirmation use the HUD’s controller actions. "
             "Wave playback is accelerated for review. This run covers the local game on macOS. "
             "The LAN run below uses two copies of the same player.", "",

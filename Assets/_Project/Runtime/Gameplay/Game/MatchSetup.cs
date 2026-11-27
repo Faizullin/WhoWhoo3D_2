@@ -12,8 +12,13 @@ public sealed class MatchSetup
     public string MapName { get; }
     public IReadOnlyList<SeatControl> Seats { get; }
 
-    public MatchSetup(string mapName, params SeatControl[] seats)
+    public bool Supply { get; }
+
+    public MatchSetup(string mapName, params SeatControl[] seats) : this(mapName, false, seats) { }
+
+    public MatchSetup(string mapName, bool supply, params SeatControl[] seats)
     {
+        Supply = supply;
         if (string.IsNullOrWhiteSpace(mapName)) throw new ArgumentException("A map name is required.", nameof(mapName));
         if (seats == null) throw new ArgumentNullException(nameof(seats));
         if (seats.Length < MinPlayers || seats.Length > MaxPlayers)

@@ -79,12 +79,13 @@ public static class BoardActions
         return moves;
     }
 
-    public static bool HasLegalMove(BoardModel board, PlayerId player)
+    public static bool HasLegalMove(BoardModel board, PlayerId player, CellId excluded = default)
     {
         if (player.IsNone) return false;
 
         foreach (var cell in board.Cells.Values)
         {
+            if (cell.Id == excluded) continue;
             foreach (var side in cell.Sides)
             {
                 if (!CanSelectSide(side, player)) continue;

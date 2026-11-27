@@ -5,6 +5,7 @@ using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Domain.Wave;
 using WhoWhoo3D.Gameplay.Ai;
+using WhoWhoo3D.Gameplay.Abilities;
 using WhoWhoo3D.Gameplay.Board;
 using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.History;
@@ -44,8 +45,12 @@ namespace WhoWhoo3D.Gameplay.Game
         public bool InSetup { get; private set; }
         public IMatchConnection Connection { get; set; }
         public BoardView RenderedBoard => boardView;
-        public bool ChoosingRelay { get; private set; }
-        public SlotId? RelaySource { get; private set; }
+        public MatchAbilities Abilities { get; private set; }
+        public MatchAction SelectedAction { get; private set; }
+        public SlotId? Target { get; private set; }
+        public SlotId? SecondTarget { get; private set; }
+        public bool ChoosingRelay => SelectedAction == MatchAction.Relay;
+        public SlotId? RelaySource => ChoosingRelay ? Target : null;
         public bool AcceptsBoardInput => !InSetup && !IsGameOver && !IsPaused && !IsReviewingHistory
             && CurrentPhase is PlayerTurnPhase turn && !turn.IsAiTurn && (Connection?.CanPlay(ActivePlayer.Id) ?? true);
 
@@ -176,8 +181,8 @@ namespace WhoWhoo3D.Gameplay.Game
 
         private void InitializeMatch(BoardModel board, BoardView view, MatchSetup setup, MatchSnapshot snapshot = null)
         {
-            ChoosingRelay = false;
-            RelaySource = null;
+            ClearSelection();
+            Abilities = new MatchAbilities(this);
             Setup = setup;
             waveAnimator?.StopAndSnapToModel();
             InSetup = false;
@@ -204,11 +209,17 @@ namespace WhoWhoo3D.Gameplay.Game
                 return;
             }
 
+            RestoreTurn(snapshot);
+        }
+
+        private void RestoreTurn(MatchSnapshot snapshot)
+        {
             TurnNumber = snapshot.turn;
             ConsecutiveSkippedTurns = snapshot.skipped;
             for (int i = 0; i < Roster.Players.Count; i++)
             {
-                Roster.Players[i].RelaySpent = snapshot.relaySpent?[i] ?? false;
+                Roster.Players[i].Inventory = snapshot.HasInventories ? snapshot.inventories[i].Copy() :
+                    new AbilityInventory { relay = snapshot.relaySpent == null || snapshot.relaySpent.Length == 0 || !snapshot.relaySpent[i] };
                 Roster.Players[i].IsAlive = snapshot.alive[i];
                 Roster.Players[i].HasHeldTiles = snapshot.held[i];
             }
@@ -330,78 +341,97 @@ namespace WhoWhoo3D.Gameplay.Game
         // ── Player Actions ───────────────────────────────────────────
 
         /// <summary>True if the active player has at least one cell they can reinforce.</summary>
-        public bool ActivePlayerHasMove() => BoardActions.HasLegalMove(Board, ActivePlayer.Id);
-
-        /// <summary>Local pointer entry point.</summary>
-        public bool TryPlayerAction(SlotId slotId)
+        public bool ActivePlayerHasMove()
         {
-            if (!AcceptsBoardInput) return false;
-            var claim = new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, slotId);
-            return Connection?.Submit(claim) ?? TrySubmitClaim(claim);
+            foreach (var seat in Roster.Players)
+                if (!string.IsNullOrEmpty(seat.Inventory.frozenCell) &&
+                    !BoardActions.HasLegalMove(Board, ActivePlayer.Id, new CellId(seat.Inventory.frozenCell)))
+                    return false;
+            return BoardActions.HasLegalMove(Board, ActivePlayer.Id);
         }
 
-        public void ChooseRelay(bool choose)
+        public bool TryPlayerAction(SlotId slotId)
         {
-            ChoosingRelay = choose && AcceptsBoardInput && !ActivePlayer.RelaySpent;
-            RelaySource = null;
+            if (!AcceptsBoardInput || !Abilities.CanClaim(slotId)) return false;
+            return SubmitLocal(new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, slotId));
+        }
+
+        private bool SubmitLocal(ClaimSlotCommand command) => Connection?.Submit(command) ?? TrySubmitClaim(command);
+
+        private void ClearSelection()
+        {
+            SelectedAction = MatchAction.Claim;
+            Target = SecondTarget = null;
+        }
+
+        public void SelectAbility(MatchAction action)
+        {
+            ClearSelection();
+            if (AcceptsBoardInput && ActivePlayer.Inventory.Has(action)) SelectedAction = action;
             ShowTurnHints(AcceptsBoardInput);
         }
 
-        public void OnSlotClicked(SlotId slotId)
+        public void ChooseRelay(bool choose) => SelectAbility(choose ? MatchAction.Relay : MatchAction.Claim);
+
+        public void OnSlotClicked(SlotId slot)
         {
-            if (!ChoosingRelay) { TryPlayerAction(slotId); return; }
-            if (AcceptsBoardInput && BoardActions.TryRelay(Board, slotId, ActivePlayer.Id, out _, out _))
-                RelaySource = slotId;
+            if (!AcceptsBoardInput) return;
+            if (SelectedAction == MatchAction.Claim) { TryPlayerAction(slot); return; }
+            if (!Abilities.CanTarget(SelectedAction, slot)) return;
+            if (SelectedAction == MatchAction.Beacon && Target is SlotId first && first.Side == slot.Side && first != slot)
+                SecondTarget = slot;
+            else
+            {
+                Target = slot;
+                SecondTarget = null;
+            }
         }
 
-        public bool ConfirmRelay()
+        public bool CanConfirm => AcceptsBoardInput && Target.HasValue &&
+            (SelectedAction != MatchAction.Beacon || SecondTarget.HasValue);
+
+        public bool ConfirmAbility()
         {
-            if (!ChoosingRelay || !AcceptsBoardInput || RelaySource is not SlotId from) return false;
-            var command = new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, from, true);
-            bool submitted = Connection?.Submit(command) ?? TrySubmitClaim(command);
-            ChooseRelay(false);
-            return submitted;
+            if (!CanConfirm) return false;
+            var command = new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, Target.Value, SelectedAction,
+                SecondTarget?.Edge ?? -1);
+            if (!SubmitLocal(command)) return false;
+            SelectAbility(MatchAction.Claim);
+            return true;
         }
 
-        /// <summary>Accepts at most one claim per turn. Called on the Unity main thread.</summary>
+        public bool ConfirmRelay() => ChoosingRelay && ConfirmAbility();
+
+        public bool TakeSupply(MatchAction card) => AcceptsBoardInput && Abilities.CanRefill(card) &&
+            SubmitLocal(new ClaimSlotCommand(ActivePlayer.Id, TurnNumber, default, MatchAction.Supply, Refill: card));
+
         public bool TrySubmitClaim(ClaimSlotCommand command)
         {
             if (InSetup || _gameOver || IsPaused || IsReviewingHistory ||
                 _currentPhase is not PlayerTurnPhase turn || turn.IsComplete ||
-                command.Actor != ActivePlayer.Id || command.TurnNumber != TurnNumber)
-                return false;
+                command.Actor != ActivePlayer.Id || command.TurnNumber != TurnNumber) return false;
 
-            SlotStateChange[] changes;
-            if (command.Relay)
-            {
-                if (ActivePlayer.RelaySpent || !BoardActions.TryRelay(Board, command.Slot, command.Actor, out var to, out var bonus))
-                    return false;
-                ActivePlayer.RelaySpent = true;
-                changes = new[] {
-                    new SlotStateChange(command.Slot, command.Actor, PlayerId.None, SlotChangeCause.Released, null),
-                    new SlotStateChange(to, PlayerId.None, command.Actor, SlotChangeCause.Claimed, command.Slot),
-                    new SlotStateChange(bonus, PlayerId.None, command.Actor, SlotChangeCause.Claimed, null)
-                };
-            }
-            else
-            {
-                if (!BoardActions.CanClaim(Board, command.Slot, command.Actor)) return false;
-                changes = new[] { new SlotStateChange(command.Slot, PlayerId.None, command.Actor, SlotChangeCause.Claimed, null) };
-            }
-            ChoosingRelay = false;
-            RelaySource = null;
-            turn.CompleteClaim();
+            var before = MatchSnapshot.Capture(this);
+            if (!Abilities.TryApply(command, out var kind, out var changes)) return false;
+            ClearSelection();
             foreach (var change in changes) Board.SetOwner(change.Slot, change.After);
-            NotifyTurnPlayed();
-            History.Record(new HistoryEntry(
-                command.Relay ? HistoryKind.Relay : HistoryKind.Claim, TurnNumber, command.Actor,
-                $"{command.Actor} {(command.Relay ? "relayed from" : "claimed")} {command.Slot}", changes));
-
+            string detail = command.Action == MatchAction.Supply ? command.Refill.ToString() : command.Slot.ToString();
+            History.Record(new HistoryEntry(kind, TurnNumber, command.Actor,
+                $"{command.Actor} {command.Action} {detail}", changes) { BeforeAction = before });
             RefreshBoardView();
-            Debug.Log($"{command.Actor} {(command.Relay ? "relayed from" : "claimed")} {command.Slot}");
+            if (command.Action == MatchAction.Supply)
+            {
+                ShowTurnHints(AcceptsBoardInput);
+                return true;
+            }
+            turn.CompleteClaim();
+            NotifyTurnPlayed();
             AdvanceWhileComplete();
             return true;
         }
+
+        internal IGamePhase StartSeatTurn() =>
+            Abilities.ResolveBeacon() ? new BoardWavePhase(this, openingWave: true) : CreatePlayerTurnPhase();
 
         // ── Presentation State ───────────────────────────────────────
 
@@ -537,27 +567,22 @@ namespace WhoWhoo3D.Gameplay.Game
         public void RevertToCursor()
         {
             var entries = History.Entries;
-
-            for (int i = entries.Count - 1; i > History.Cursor; i--)
-            {
-                if (entries[i].Kind == HistoryKind.Relay) Roster.Players[entries[i].Actor.Value - 1].RelaySpent = false;
-                foreach (var change in entries[i].Changes)
-                    Board.SetOwner(change.Slot, change.Before);
-            }
-
+            int index = History.Cursor + 1;
+            if (index >= entries.Count) { ReturnToPresent(); return; }
+            // A simulated chain is atomic. Branch at the decision which produced the displayed frames.
+            while (index >= 0 && entries[index].BeforeAction == null) index--;
+            if (index < 0) return;
+            var snapshot = entries[index].BeforeAction;
+            while (History.Cursor >= index) History.StepBack();
             History.TruncateAfterCursor();
-
-            _gameOver = false;
-            Winner = PlayerId.None;
-            IsReviewingHistory = false;
-            IsPaused = false;
-
             waveAnimator?.StopAndSnapToModel();
             boardView?.ClearOverrides();
+            snapshot.RestoreBoard(Board, PlayerCount);
+            _gameOver = IsPaused = IsReviewingHistory = false;
+            Winner = PlayerId.None;
+            ClearSelection();
+            RestoreTurn(snapshot);
             RefreshBoardView();
-
-            Roster.UpdateAliveStatus(Board);
-            SetPhase(CreatePlayerTurnPhase());
         }
 
         private void EnterReviewMode()
@@ -574,7 +599,7 @@ namespace WhoWhoo3D.Gameplay.Game
         public void ShowTurnHints(bool visible)
         {
             if (boardView != null && Board != null)
-                boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None, ChoosingRelay);
+                boardView.ShowTurnHints(Board, visible && AcceptsBoardInput ? ActivePlayer.Id : PlayerId.None, Abilities, SelectedAction);
         }
 
         public void RefreshBoardView()

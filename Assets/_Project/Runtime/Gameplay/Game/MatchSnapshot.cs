@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Gameplay.Abilities;
 
 namespace WhoWhoo3D.Gameplay.Game;
 
@@ -17,7 +18,8 @@ public sealed class MatchSnapshot
     public int[] owners;
     public bool[] alive;
     public bool[] held;
-    public bool[] relaySpent;
+    public bool[] relaySpent; // Legacy snapshots
+    public AbilityInventory[] inventories;
 
     private static IEnumerable<Slot> Slots(BoardModel board) =>
         board.Cells.OrderBy(p => p.Key.Value, StringComparer.Ordinal).SelectMany(p => p.Value.Sides)
@@ -29,15 +31,18 @@ public sealed class MatchSnapshot
         skipped = game.ConsecutiveSkippedTurns, finished = game.IsGameOver, winner = game.Winner.Value,
         owners = Slots(game.Board).Select(slot => slot.Owner.Value).ToArray(),
         alive = game.Roster.Players.Select(p => p.IsAlive).ToArray(),
-        relaySpent = game.Roster.Players.Select(p => p.RelaySpent).ToArray(),
+        inventories = game.Roster.Players.Select(p => p.Inventory.Copy()).ToArray(),
         held = game.Roster.Players.Select(p => p.HasHeldTiles).ToArray()
     };
+
+    internal bool HasInventories => inventories != null && inventories.Length > 0;
 
     internal void RestoreBoard(BoardModel board, int count)
     {
         var slots = Slots(board).ToArray();
         if (owners == null || slots.Length != owners.Length || alive?.Length != count || held?.Length != count ||
-            (relaySpent != null && relaySpent.Length != count) ||
+            (relaySpent != null && relaySpent.Length > 0 && relaySpent.Length != count) ||
+            (HasInventories && (inventories.Length != count || inventories.Any(i => i == null || !i.ValidOn(board, turn)))) ||
             turn < 1 || active < 1 || active > count || skipped < 0 || skipped > count ||
             winner < 0 || winner > count || (!finished && (winner != 0 || !alive[active - 1])) ||
             owners.Any(id => id < 0 || id > count))

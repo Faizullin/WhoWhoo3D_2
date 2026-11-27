@@ -15,8 +15,10 @@ public sealed class BoardWavePhase : IGamePhase
     public bool IsComplete { get; private set; }
     public WaveResult Result { get; private set; }
 
-    public BoardWavePhase(GameController game)
+    private readonly bool _openingWave;
+    public BoardWavePhase(GameController game, bool openingWave = false)
     {
+        _openingWave = openingWave;
         _game = game;
     }
 
@@ -62,6 +64,6 @@ public sealed class BoardWavePhase : IGamePhase
 
     public void Exit() { }
 
-    public IGamePhase NextPhase() => new VictoryCheckPhase(_game);
+    public IGamePhase NextPhase() => new VictoryCheckPhase(_game, _openingWave);
 }
 

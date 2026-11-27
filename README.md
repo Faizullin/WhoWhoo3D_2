@@ -12,7 +12,11 @@ Open the project in Unity **6000.4.5f1** and play `Assets/_Project/Scenes/Demo4x
 
 Select **terrace6x6** for a three-level board with playable walls. Right-drag to orbit, middle-drag to pan, scroll to zoom and press **Home** to fit the board. **A/D** rotate, **W/S** tilt and **Q/E** zoom. The gold cross marks the hovered tile’s paired edge.
 
-Each seat has one **Relay** per match. Select it, pick a gold-rimmed owned tile and preview the two marked destinations. Confirm to vacate your tile and claim both white tiles across its edge. A full destination face expands immediately. Cancel returns to normal claims and keeps the charge.
+Each seat starts with one **Relay** and one **Freeze**. Select it, pick a gold-rimmed owned tile and preview the two marked destinations. Confirm to vacate your tile and claim both white tiles across its edge. A full destination face expands immediately. Cancel returns to normal claims and keeps the charge.
+
+**Freeze** spends your turn to ice a cube. Pick a tile on it and confirm. The next opponent cannot claim there or land Relay there, and can still send a wave into it. The blue tint clears after that opponent’s wave. The preview only offers cubes where the opponent has a legal claim both on and off the cube.
+
+Choose **Fixed charges** for the opening inventory, or **Supply after 4 claims** to earn one refill per seat per match. On a later turn, collect an empty Relay, Freeze, or **Beacon** card for free. A Beacon marks two white tiles you select on the same open face. Both must still be legal when your next turn begins. Its wave finishes before you choose a normal action. The scoreboard shows each seat’s remaining charges as R, F and B. Camera controls work throughout playback.
 
 ## Host or join on the same network
 
@@ -30,6 +34,6 @@ If a guest loses its connection, the room waits. Select **Reconnect** in the sam
 | LAN | Discoverable player-hosted rooms for 2–4 seats, direct joining, turn validation, reconnect and rematch |
 | Verification | Unity rule tests, a saved-scene pointer test, TCP Play Mode tests, a two-process macOS gameplay report, and [isolated Linux LAN tests](docs/reports/LAN.md) |
 | Map editor | Separate authoring demo with place, erase, paint, save and load |
-| Next implementation | Add Freeze with a visible expiry, compare Beacon and other ability prototypes, then redesign the adaptive HUD and animate waves crossing edges. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
+| Next implementation | Compare tactical outcomes for Fixed charges and Supply, then improve the adaptive inventory and wave paths. See the [gameplay roadmap](docs/GAMEPLAY_ROADMAP.md). |
 
 The capture command and its requirements are in the [gameplay report](docs/reports/README.md). Board formats and expansion rules are in the [map schema](docs/MAP_SCHEMA.md) and [wave specification](docs/WAVE_SPEC.md).

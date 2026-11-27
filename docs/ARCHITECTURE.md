@@ -51,7 +51,7 @@ Unity 6000.4.5f1 uses feature folders under `Assets/_Project/Runtime`. Each top-
 
 `MatchSetup` stores the map and an immutable ordered list of seat controllers. Seat one belongs to P1. `StartMatch(setup)` creates the board and roster. Restart reloads the map using the same setup. Serialized scene settings supply defaults for scenes and the local setup screen.
 
-Pointer input checks the active seat before calling `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number, slot and Relay flag. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
+Pointer input checks the active seat before calling `GameController.TrySubmitClaim` with a `ClaimSlotCommand` containing the actor, expected turn number, action kind and target. Beacon also carries the second edge. Supply carries the chosen card. The controller checks the phase, pause and review state, actor, turn and legality before changing ownership. It records the accepted claim and advances into wave resolution. A replayed command from a completed turn leaves the board and history intact.
 
 ### LAN host and guest
 
@@ -63,7 +63,7 @@ While the initial lobby has open seats, `LanRoomAdvertiser` sends one announceme
 
 The host runs a separate `GameController` without a view or wave animator. A move must match its connection’s seat, the current round, the active player, the expected turn and a legal slot. The host assigns a sequence number to each accepted claim. Every visible board, including P1’s, processes the same claims in order and can finish its own animations between moves. Offline modes call the same rules directly.
 
-When a guest drops during play, the room pauses. The running guest keeps a private seat token in memory. Once all seats reconnect, the host sends a settled snapshot with ownership, active seat, turn, Relay charges, elimination state, skipped turns and result. Each view rebuilds from the agreed map and resumes at the host’s sequence number. Starting a rematch increments the round and resets the sequence. The room lasts for the lifetime of the host process. This transport is for a trusted local network.
+When a guest drops during play, the room pauses. The running guest keeps a private seat token in memory. Once all seats reconnect, the host sends a settled snapshot with ownership, active seat, turn, seat inventories, pending effects, elimination state, skipped turns and result. Each view rebuilds from the agreed map and resumes at the host’s sequence number. Starting a rematch increments the round and resets the sequence. The room lasts for the lifetime of the host process. This transport is for a trusted local network.
 
 ## Key systems
 
@@ -97,9 +97,11 @@ complete each other cannot freeze the editor.
 
 ### 2. Ability inventory
 
-Relay uses the same turn submission path as a normal claim. The preview and authoritative validation both call `BoardActions.TryRelay`. Its only input target is an owned slot. The paired edge and ascending edge order determine the two destinations on every peer. The controller spends the seat’s charge and records all three tile changes in one history entry before starting wave resolution. Canceling the preview changes only local selection.
+`Gameplay/Abilities/MatchAbilities` shares target legality across the pointer, inventory, computer seats and authoritative turn commands. `AbilityInventory` holds one seat’s charges, supply progress, frozen cube and Beacon marks. Each seat starts with one Relay and one Freeze. A Supply command fills one empty card and leaves the current turn phase open. The LAN host chooses the ruleset in setup and sends it to joining seats using protocol 3.
 
-`PlayerState.RelaySpent` tracks the charge and `MatchSnapshot.relaySpent` persists it across reconnects. LAN protocol 2 carries the action flag in submissions and accepted turns. The computer can use the same action to complete a face. The second ability introduces typed action IDs and per-seat inventories as described in the [gameplay roadmap](GAMEPLAY_ROADMAP.md).
+After a turn wave, the victory phase removes expired ice and clears eliminated seats’ Beacons. At the next living seat’s turn boundary, a pending Beacon can start an opening wave. Its victory check normally returns control to the same seat. The ordinary wave resolver always uses the underlying paired edges. A reconnect restores the settled board and inventories, and a rematch rebuilds them from the same setup.
+
+The local timeline displays individual wave steps. Branching during automatic playback steps returns to the decision that produced them, restoring a snapshot of ownership, turn, roster and inventories. See the [turn and ability rules](WAVE_SPEC.md).
 
 ### 3. Board / Wave System
 
@@ -159,6 +161,6 @@ The TCP Play Mode suite checks seat binding, duplicate claims, loss and recovery
 
 The discovery tests join a room by its advertised port, track changing seat counts, expire filled and closed rooms, and filter incompatible announcements. The standalone report captures the join screen before the guest selects the discovered room.
 
-Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The next slice adds a timed effect to the ability inventory, followed by an adaptive HUD and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
+Separate-interface and blocked-UDP verification runs through the Linux test player. The shared scene now loads the terrace map with a local camera rig. The demo supports Fixed charges and Supply. Upcoming work covers ability balance, an adaptive HUD and wave animation. See the [LAN verification procedure](reports/LAN.md) and [gameplay roadmap](GAMEPLAY_ROADMAP.md).
 
 The recorded hot-seat run, LAN screenshots and verification results are in the [gameplay report](reports/README.md).

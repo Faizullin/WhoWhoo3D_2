@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using WhoWhoo3D.Domain.Board;
+using WhoWhoo3D.Domain.Match;
 using WhoWhoo3D.Gameplay.Board.View;
 using WhoWhoo3D.Gameplay.Game;
 
@@ -93,9 +94,29 @@ namespace WhoWhoo3D.Input
         private void OnGUI()
         {
             if (!inputCamera || !gameController || !gameController.RenderedBoard ||
-                !gameController.AcceptsBoardInput || Event.current.type != EventType.Repaint) return;
+                gameController.InSetup || gameController.IsReviewingHistory || Event.current.type != EventType.Repaint) return;
+            foreach (var seat in gameController.Roster.Players)
+            {
+                if (!seat.Inventory.HasBeacon) continue;
+                var color = SlotView.ColorFor(seat.Id);
+                Mark(gameController.RenderedBoard.GetSlotView(seat.Inventory.BeaconFirst), true, color);
+                Mark(gameController.RenderedBoard.GetSlotView(seat.Inventory.BeaconSecond), true, color);
+            }
+            if (!gameController.AcceptsBoardInput) return;
+            if (gameController.SelectedAction == MatchAction.Freeze && gameController.Target is SlotId frost)
+            {
+                foreach (var side in gameController.Board.GetCell(frost.Side.Cell).ExposedSides)
+                    foreach (var tile in side.Slots) Mark(gameController.RenderedBoard.GetSlotView(tile.Id), false, Color.cyan);
+                return;
+            }
+            if (gameController.SelectedAction == MatchAction.Beacon)
+            {
+                if (gameController.Target is SlotId a) Mark(gameController.RenderedBoard.GetSlotView(a), true);
+                if (gameController.SecondTarget is SlotId b) Mark(gameController.RenderedBoard.GetSlotView(b), true);
+                return;
+            }
             if (gameController.ChoosingRelay && gameController.RelaySource is SlotId from &&
-                WhoWhoo3D.Gameplay.Board.BoardActions.TryRelay(gameController.Board, from, gameController.ActivePlayer.Id, out var to, out var bonus))
+                gameController.Abilities.TryRelay(from, out var to, out var bonus))
             {
                 Mark(gameController.RenderedBoard.GetSlotView(from), true);
                 Mark(gameController.RenderedBoard.GetSlotView(to));
@@ -105,7 +126,7 @@ namespace WhoWhoo3D.Input
             if (_hovered && _hovered.IsClaimHighlighted && _partner) Mark(_partner);
         }
 
-        private void Mark(SlotView view, bool source = false)
+        private void Mark(SlotView view, bool source = false, Color? color = null)
         {
             if (view == null) return;
             // Project the marker even when the destination sits behind a riser.
@@ -114,7 +135,7 @@ namespace WhoWhoo3D.Input
             float x = Mathf.Clamp(point.x, 18, Screen.width - 18);
             float y = Mathf.Clamp(Screen.height - point.y, 18, Screen.height - 18);
             var saved = GUI.color;
-            GUI.color = new Color(1f, .78f, .18f);
+            GUI.color = color ?? new Color(1f, .78f, .18f);
             var ink = Texture2D.whiteTexture;
             if (source)
             {

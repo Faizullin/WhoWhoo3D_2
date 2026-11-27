@@ -1,12 +1,12 @@
 # WhoWhoo3D gameplay report
 
-[Watch the flat match and vertical demo (53.8 s)](demo4x4.mp4)
+[Watch the flat match and vertical demo (60.7 s)](demo4x4.mp4)
 
 Unity 6000.4.5f1 · Demo4x4 · three local players · **P1 won in 25 clicks**.
 
-**Tests passed** — Edit Mode (119), Play Mode (5). The match check compares every displayed legal move with the board rules, exercises map and player selection, checks restart, climbs a riser and clicks a rear face after orbiting.
+**Tests passed** — Edit Mode (126), Play Mode (5). The match check compares every displayed legal move with the board rules, exercises map and player selection, checks restart, climbs a riser and clicks a rear face after orbiting.
 
-The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, rotates the camera by dragging, clicks the far wall and previews Relay. Setup, restart and Relay confirmation use the HUD’s controller actions. Wave playback is accelerated for review. This run covers the local game on macOS. The LAN run below uses two copies of the same player.
+The silent video records the game window at 12 fps. A seeded driver sends mouse events through the scene camera and tile colliders for the flat match. The terrace sequence stages a climb with legal alternating claims, rotates the camera by dragging, clicks the far wall, uses Relay and Freeze, takes supply and resolves a Beacon. Setup, restart and Relay confirmation use the HUD’s controller actions. Wave playback is accelerated for review. This run covers the local game on macOS. The LAN run below uses two copies of the same player.
 
 ## Local match setup
 
@@ -67,6 +67,30 @@ The silent video records the game window at 12 fps. A seeded driver sends mouse 
 51.2 s
 
 ![Relay target preview before confirmation](screens/relay.png)
+
+## A free supply choice after four ordinary claims
+
+54.8 s
+
+![A free supply choice after four ordinary claims](screens/supply.png)
+
+## Frozen cube during the opposing turn
+
+55.9 s
+
+![Frozen cube during the opposing turn](screens/freeze.png)
+
+## Public Beacon marks before the opponent replies
+
+57.2 s
+
+![Public Beacon marks before the opponent replies](screens/beacon.png)
+
+## Beacon starting a wave before its owner acts
+
+58.6 s
+
+![Beacon starting a wave before its owner acts](screens/beacon-wave.png)
 
 ## LAN match
 

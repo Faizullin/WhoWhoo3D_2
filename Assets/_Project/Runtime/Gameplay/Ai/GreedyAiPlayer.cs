@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Domain.Wave;
@@ -31,11 +32,11 @@ public sealed class GreedyAiPlayer
         public override string ToString() => $"{Slot}: {ScoreDelta:+0;-0;0}";
     }
 
-    public bool TryChooseMove(BoardModel board, PlayerId me, out SlotId chosen)
+    public bool TryChooseMove(BoardModel board, PlayerId me, out SlotId chosen, Predicate<SlotId> allowed = null)
     {
         chosen = default;
 
-        var evaluations = EvaluateAll(board, me);
+        var evaluations = EvaluateAll(board, me, allowed);
         if (evaluations.Count == 0)
             return false;
 
@@ -49,7 +50,7 @@ public sealed class GreedyAiPlayer
     }
 
     /// <summary>Scores every legal move, in ascending slot order. Exposed for tests and debug overlays.</summary>
-    public List<MoveEvaluation> EvaluateAll(BoardModel board, PlayerId me)
+    public List<MoveEvaluation> EvaluateAll(BoardModel board, PlayerId me, Predicate<SlotId> allowed = null)
     {
         var results = new List<MoveEvaluation>();
 
@@ -63,7 +64,7 @@ public sealed class GreedyAiPlayer
         int opponentsBefore = BoardActions.OpponentScore(board, me);
 
         foreach (var slot in moves)
-            results.Add(new MoveEvaluation(slot, Evaluate(board, me, slot, myBefore, opponentsBefore)));
+            if (allowed == null || allowed(slot)) results.Add(new MoveEvaluation(slot, Evaluate(board, me, slot, myBefore, opponentsBefore)));
 
         return results;
     }

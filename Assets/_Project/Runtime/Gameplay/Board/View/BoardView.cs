@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using WhoWhoo3D.Domain.Match;
+using WhoWhoo3D.Gameplay.Abilities;
 using WhoWhoo3D.Domain.Board;
 
 namespace WhoWhoo3D.Gameplay.Board.View
@@ -32,21 +34,25 @@ namespace WhoWhoo3D.Gameplay.Board.View
 
         public bool HasHighlightedTargets { get; private set; }
 
-        public void ShowTurnHints(BoardModel board, PlayerId player, bool relay = false)
+        public void ShowTurnHints(BoardModel board, PlayerId player, MatchAbilities abilities, MatchAction action)
         {
             HasHighlightedTargets = false;
             foreach (var cell in board.Cells.Values)
+            {
+                bool frozen = abilities.Frozen(cell.Id);
+                GetCellView(cell.Id)?.SetFrozen(frozen);
+                bool freezeTarget = action == MatchAction.Freeze && !player.IsNone && abilities.CanFreeze(cell.Id);
                 foreach (var side in cell.ExposedSides)
                 {
                     bool locked = !player.IsNone && !BoardActions.CanSelectSide(side, player);
                     foreach (var slot in side.Slots)
                     {
-                        bool legal = !player.IsNone && (relay ? BoardActions.TryRelay(board, slot.Id, player, out _, out _)
-                            : BoardActions.CanClaim(board, slot.Id, player));
+                        bool legal = !player.IsNone && (action == MatchAction.Freeze ? freezeTarget : abilities.CanTarget(action, slot.Id));
                         HasHighlightedTargets |= legal;
-                        GetSlotView(slot.Id)?.SetTurnHint(legal, locked, relay && legal);
+                        GetSlotView(slot.Id)?.SetTurnHint(legal, locked || frozen, action == MatchAction.Relay && legal);
                     }
                 }
+            }
         }
 
         public CellView GetCellView(CellId id) =>

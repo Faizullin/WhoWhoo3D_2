@@ -47,7 +47,7 @@ public class LanMatchTests
     public IEnumerator HostAndGuestsFinishReconnectAndRematch()
     {
         var host = MakePlayer();
-        host.Host("demo4x4", 3, 0);
+        host.Host("demo4x4", 3, 0, supply: true);
         var guest = MakePlayer();
         string address = host.Address.Split(' ')[0];
         guest.Join(address, host.Port);
@@ -64,8 +64,16 @@ public class LanMatchTests
         while (!board.IsGameOver)
         {
             int active = board.ActivePlayer.Id.Value - 1;
-            var slot = BoardActions.LegalMoves(board.Board, board.ActivePlayer.Id).OrderBy(_ => rng.Next()).First();
+            var slot = BoardActions.LegalMoves(board.Board, board.ActivePlayer.Id).Where(board.Abilities.CanClaim).OrderBy(_ => rng.Next()).First();
             Assert.That(games[(active + 1) % games.Length].TryPlayerAction(slot), Is.False);
+            if (board.Abilities.CanRefill(MatchAction.Beacon))
+            {
+                int turn = board.TurnNumber;
+                Assert.That(games[active].TakeSupply(MatchAction.Beacon), Is.True);
+                moves++;
+                yield return Until(() => _sessions.All(s => s.Revision == moves));
+                Assert.That(games.All(g => g.ActivePlayer.Inventory.beacon && g.TurnNumber == turn), Is.True);
+            }
             if (moves == 1)
             {
                 var source = board.Board.Cells.Values.SelectMany(c => c.ExposedSides).SelectMany(s => s.Slots)
@@ -73,6 +81,14 @@ public class LanMatchTests
                 games[active].ChooseRelay(true);
                 games[active].OnSlotClicked(source.Id);
                 Assert.That(games[active].ConfirmRelay(), Is.True);
+            }
+            else if (moves == 3)
+            {
+                var target = board.Board.Cells.Values.SelectMany(c => c.ExposedSides).SelectMany(s => s.Slots)
+                    .First(s => board.Abilities.CanTarget(MatchAction.Freeze, s.Id));
+                games[active].SelectAbility(MatchAction.Freeze);
+                games[active].OnSlotClicked(target.Id);
+                Assert.That(games[active].ConfirmAbility(), Is.True);
             }
             else Assert.That(games[active].TryPlayerAction(slot), Is.True);
             Assert.That(games[active].TryPlayerAction(slot), Is.False);
@@ -93,6 +109,7 @@ public class LanMatchTests
                 guest.Reconnect();
                 yield return Until(() => _sessions.All(s => s.State == LanState.Playing));
                 Assert.That(guest.LocalSeat, Is.EqualTo(2));
+                Assert.That(games.All(g => g.Roster.Players.Any(p => !string.IsNullOrEmpty(p.Inventory.frozenCell))), Is.True);
                 Assert.That(games.All(g => g.Roster.Players[1].RelaySpent), Is.True);
                 foreach (var game in games)
                     Assert.That(JsonUtility.ToJson(MatchSnapshot.Capture(game)), Is.EqualTo(expected));

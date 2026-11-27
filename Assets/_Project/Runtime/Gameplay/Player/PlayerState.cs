@@ -1,5 +1,6 @@
 using WhoWhoo3D.Domain.Board;
 using WhoWhoo3D.Gameplay.Board;
+using WhoWhoo3D.Gameplay.Abilities;
 
 namespace WhoWhoo3D.Gameplay.Player;
 
@@ -9,7 +10,8 @@ namespace WhoWhoo3D.Gameplay.Player;
 /// </summary>
 public sealed class PlayerState
 {
-    public bool RelaySpent { get; internal set; }
+    public AbilityInventory Inventory { get; internal set; } = new();
+    public bool RelaySpent => !Inventory.relay;
     public PlayerId Id { get; }
     public bool IsAlive { get; set; } = true;
 
